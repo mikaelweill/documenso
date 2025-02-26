@@ -7,6 +7,7 @@ import { useLingui } from '@lingui/react';
 import { LucideChevronDown, LucideChevronUp } from 'lucide-react';
 
 import { useThrottleFn } from '@documenso/lib/client-only/hooks/use-throttle-fn';
+import { PDF_VIEWER_PAGE_SELECTOR } from '@documenso/lib/constants/pdf-viewer';
 import { validateFieldsInserted } from '@documenso/lib/utils/fields';
 import type { DocumentMeta, TemplateMeta } from '@documenso/prisma/client';
 import {
@@ -18,18 +19,25 @@ import {
 } from '@documenso/prisma/client';
 import type { RecipientWithFields } from '@documenso/prisma/types/recipient-with-fields';
 import { trpc } from '@documenso/trpc/react';
+import { FieldToolTip } from '@documenso/ui/components/field/field-tooltip';
 import { Button } from '@documenso/ui/primitives/button';
+import { Card, CardContent } from '@documenso/ui/primitives/card';
+import { ElementVisible } from '@documenso/ui/primitives/element-visible';
+import { Input } from '@documenso/ui/primitives/input';
 import { Label } from '@documenso/ui/primitives/label';
 import { LazyPDFViewer } from '@documenso/ui/primitives/lazy-pdf-viewer';
 import { RadioGroup, RadioGroupItem } from '@documenso/ui/primitives/radio-group';
+import { SignaturePad } from '@documenso/ui/primitives/signature-pad';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import { useRequiredSigningContext } from '~/app/(signing)/sign/[token]/provider';
 import { RecipientProvider } from '~/app/(signing)/sign/[token]/recipient-context';
 import { RejectDocumentDialog } from '~/app/(signing)/sign/[token]/reject-document-dialog';
+import { Logo } from '~/components/branding/logo';
 
 import { EmbedClientLoading } from '../../client-loading';
 import { EmbedDocumentCompleted } from '../../completed';
+import { EmbedDocumentFields } from '../../document-fields';
 import { EmbedDocumentRejected } from '../../rejected';
 import { injectCss } from '../../util';
 import { ZSignDocumentEmbedDataSchema } from './schema';
@@ -241,21 +249,14 @@ export const EmbedSignDocumentClientPage = ({
     return (
       <EmbedDocumentCompleted
         name={fullName}
-        signature={
-          {
-            id: 1,
-            fieldId: 1,
-            recipientId: 1,
-            created: new Date(),
-            signatureImageAsBase64: signature?.startsWith('data:') ? signature : null,
-            typedSignature: signature?.startsWith('data:') ? null : signature,
-            voiceSignatureUrl: null,
-            voiceSignatureTranscript: null,
-            voiceSignatureMetadata: null,
-            voiceSignatureCreatedAt: null,
-            voiceEnrollmentId: null,
-          } as Signature
-        }
+        signature={{
+          id: 1,
+          fieldId: 1,
+          recipientId: 1,
+          created: new Date(),
+          signatureImageAsBase64: signature?.startsWith('data:') ? signature : null,
+          typedSignature: signature?.startsWith('data:') ? null : signature,
+        }}
       />
     );
   }
@@ -350,28 +351,154 @@ export const EmbedSignDocumentClientPage = ({
                             .map((r) => (
                               <div
                                 key={`${assistantSignersId}-${r.id}`}
-                                className="flex items-center gap-x-1.5"
+                                className="bg-widget border-border relative flex flex-col gap-4 rounded-lg border p-4"
                               >
-                                <RadioGroupItem
-                                  className="h-4 w-4 shrink-0"
-                                  value={r.id.toString()}
-                                  id={`signer-${r.id}`}
-                                />
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <RadioGroupItem
+                                      id={`${assistantSignersId}-${r.id}`}
+                                      value={r.id.toString()}
+                                      className="after:absolute after:inset-0"
+                                    />
 
-                                <Label htmlFor={`signer-${r.id}`} className="text-sm">
-                                  {r.name} ({r.email})
-                                </Label>
+                                    <div className="grid grow gap-1">
+                                      <Label
+                                        className="inline-flex items-start"
+                                        htmlFor={`${assistantSignersId}-${r.id}`}
+                                      >
+                                        {r.name}
+
+                                        {r.id === recipient.id && (
+                                          <span className="text-muted-foreground ml-2">
+                                            {_(msg`(You)`)}
+                                          </span>
+                                        )}
+                                      </Label>
+                                      <p className="text-muted-foreground text-xs">{r.email}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-muted-foreground text-xs leading-[inherit]">
+                                    {r.fields.length} {r.fields.length === 1 ? 'field' : 'fields'}
+                                  </div>
+                                </div>
                               </div>
                             ))}
                         </RadioGroup>
                       </fieldset>
                     </div>
                   )}
+
+                  {!isAssistantMode && (
+                    <>
+                      <div>
+                        <Label htmlFor="full-name">
+                          <Trans>Full Name</Trans>
+                        </Label>
+
+                        <Input
+                          type="text"
+                          id="full-name"
+                          className="bg-background mt-2"
+                          disabled={isNameLocked}
+                          value={fullName}
+                          onChange={(e) => !isNameLocked && setFullName(e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="email">
+                          <Trans>Email</Trans>
+                        </Label>
+
+                        <Input
+                          type="email"
+                          id="email"
+                          className="bg-background mt-2"
+                          value={email}
+                          disabled
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="Signature">
+                          <Trans>Signature</Trans>
+                        </Label>
+
+                        <Card className="mt-2" gradient degrees={-120}>
+                          <CardContent className="p-0">
+                            <SignaturePad
+                              className="h-44 w-full"
+                              disabled={isThrottled || isSubmitting}
+                              defaultValue={signature ?? undefined}
+                              onChange={(value) => {
+                                setSignature(value);
+                              }}
+                              onValidityChange={(isValid) => {
+                                setSignatureValid(isValid);
+                              }}
+                              allowTypedSignature={Boolean(
+                                metadata &&
+                                  'typedSignatureEnabled' in metadata &&
+                                  metadata.typedSignatureEnabled,
+                              )}
+                            />
+                          </CardContent>
+                        </Card>
+
+                        {hasSignatureField && !signatureValid && (
+                          <div className="text-destructive mt-2 text-sm">
+                            <Trans>
+                              Signature is too small. Please provide a more complete signature.
+                            </Trans>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
+              </div>
+
+              <div className="hidden flex-1 group-data-[expanded]/document-widget:block md:block" />
+
+              <div className="embed--DocumentWidgetFooter mt-4 hidden w-full grid-cols-2 items-center group-data-[expanded]/document-widget:grid md:grid">
+                {pendingFields.length > 0 ? (
+                  <Button className="col-start-2" onClick={() => onNextFieldClick()}>
+                    <Trans>Next</Trans>
+                  </Button>
+                ) : (
+                  <Button
+                    className={allowDocumentRejection ? 'col-start-2' : 'col-span-2'}
+                    disabled={
+                      isThrottled || (!isAssistantMode && hasSignatureField && !signatureValid)
+                    }
+                    loading={isSubmitting}
+                    onClick={() => throttledOnCompleteClick()}
+                  >
+                    <Trans>Complete</Trans>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
+
+          <ElementVisible target={PDF_VIEWER_PAGE_SELECTOR}>
+            {showPendingFieldTooltip && pendingFields.length > 0 && (
+              <FieldToolTip key={pendingFields[0].id} field={pendingFields[0]} color="warning">
+                <Trans>Click to insert field</Trans>
+              </FieldToolTip>
+            )}
+          </ElementVisible>
+
+          {/* Fields */}
+          <EmbedDocumentFields fields={fields} metadata={metadata} />
         </div>
+
+        {!hidePoweredBy && (
+          <div className="bg-primary text-primary-foreground fixed bottom-0 left-0 z-40 rounded-tr px-2 py-1 text-xs font-medium opacity-60 hover:opacity-100">
+            <span>Powered by</span>
+            <Logo className="ml-2 inline-block h-[14px]" />
+          </div>
+        )}
       </div>
     </RecipientProvider>
   );

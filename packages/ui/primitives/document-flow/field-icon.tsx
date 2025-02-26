@@ -13,7 +13,6 @@ import {
 
 import type { TFieldMetaSchema as FieldMetaType } from '@documenso/lib/types/field-meta';
 import { FieldType } from '@documenso/prisma/client';
-import { VoiceSignatureIcon } from '@documenso/ui/icons/voice-signature';
 
 import { cn } from '../../lib/utils';
 
@@ -34,7 +33,6 @@ const fieldIcons = {
   [FieldType.RADIO]: { icon: Disc, label: 'Radio' },
   [FieldType.CHECKBOX]: { icon: CheckSquare, label: 'Checkbox' },
   [FieldType.DROPDOWN]: { icon: ChevronDown, label: 'Select' },
-  [FieldType.VOICE_SIGNATURE]: { icon: VoiceSignatureIcon, label: 'Voice Signature' },
 };
 
 export const FieldIcon = ({
@@ -54,16 +52,8 @@ export const FieldIcon = ({
         <Trans>Signature</Trans>
       </div>
     );
-  } else if (type === 'VOICE_SIGNATURE') {
-    return (
-      <div className="text-field-card-foreground flex items-center justify-center gap-x-1 text-[clamp(0.575rem,25cqw,1.2rem)]">
-        <VoiceSignatureIcon className="h-3 w-3" />
-        <Trans>Voice</Trans>
-      </div>
-    );
   } else {
-    const fieldIcon = fieldIcons[type as keyof typeof fieldIcons];
-    const Icon = fieldIcon?.icon;
+    const Icon = fieldIcons[type]?.icon;
     let label;
 
     if (fieldMeta && (type === 'TEXT' || type === 'NUMBER')) {
@@ -74,10 +64,10 @@ export const FieldIcon = ({
         label =
           fieldMeta.label.length > 20 ? fieldMeta.label.substring(0, 20) + '...' : fieldMeta.label;
       } else {
-        label = fieldIcon?.label;
+        label = fieldIcons[type]?.label;
       }
     } else {
-      label = fieldIcon?.label;
+      label = fieldIcons[type]?.label;
     }
 
     return (

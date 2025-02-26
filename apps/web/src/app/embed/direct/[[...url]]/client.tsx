@@ -125,12 +125,7 @@ export const EmbedDirectTemplateClientPage = ({
             fieldId: 1,
             signatureImageAsBase64: payload.value.startsWith('data:') ? payload.value : null,
             typedSignature: payload.value.startsWith('data:') ? null : payload.value,
-            voiceSignatureUrl: null,
-            voiceSignatureTranscript: null,
-            voiceSignatureMetadata: null,
-            voiceSignatureCreatedAt: null,
-            voiceEnrollmentId: null,
-          } as Signature;
+          } satisfies Signature;
         }
 
         if (field.type === FieldType.DATE) {
@@ -326,21 +321,14 @@ export const EmbedDirectTemplateClientPage = ({
     return (
       <EmbedDocumentCompleted
         name={fullName}
-        signature={
-          {
-            id: 1,
-            fieldId: 1,
-            recipientId: 1,
-            created: new Date(),
-            signatureImageAsBase64: signature?.startsWith('data:') ? signature : null,
-            typedSignature: signature?.startsWith('data:') ? null : signature,
-            voiceSignatureUrl: null,
-            voiceSignatureTranscript: null,
-            voiceSignatureMetadata: null,
-            voiceSignatureCreatedAt: null,
-            voiceEnrollmentId: null,
-          } as Signature
-        }
+        signature={{
+          id: 1,
+          fieldId: 1,
+          recipientId: 1,
+          created: new Date(),
+          signatureImageAsBase64: signature?.startsWith('data:') ? signature : null,
+          typedSignature: signature?.startsWith('data:') ? null : signature,
+        }}
       />
     );
   }

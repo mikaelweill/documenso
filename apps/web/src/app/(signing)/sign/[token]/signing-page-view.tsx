@@ -41,6 +41,7 @@ import { RecipientProvider } from './recipient-context';
 import { RejectDocumentDialog } from './reject-document-dialog';
 import { SignatureField } from './signature-field';
 import { TextField } from './text-field';
+import { VoiceSignatureField } from './voice-signature-field';
 
 export type SigningPageViewProps = {
   document: DocumentAndSender;
@@ -185,6 +186,9 @@ export const SigningPageView = ({
                     field={field}
                     typedSignatureEnabled={documentMeta?.typedSignatureEnabled}
                   />
+                ))
+                .with(FieldType.VOICE_SIGNATURE, () => (
+                  <VoiceSignatureField key={field.id} field={field} />
                 ))
                 .with(FieldType.INITIALS, () => <InitialsField key={field.id} field={field} />)
                 .with(FieldType.NAME, () => <NameField key={field.id} field={field} />)

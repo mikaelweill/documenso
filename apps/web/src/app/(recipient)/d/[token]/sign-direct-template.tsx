@@ -103,11 +103,6 @@ export const SignDirectTemplateForm = ({
             fieldId: 1,
             signatureImageAsBase64: value.value.startsWith('data:') ? value.value : null,
             typedSignature: value.value.startsWith('data:') ? null : value.value,
-            voiceSignatureUrl: null,
-            voiceSignatureTranscript: null,
-            voiceSignatureMetadata: null,
-            voiceSignatureCreatedAt: null,
-            voiceEnrollmentId: null,
           } satisfies Signature;
         }
 
