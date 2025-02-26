@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { Trans, msg } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
+import { MicIcon } from 'lucide-react';
 
 import { DO_NOT_INVALIDATE_QUERY_ON_MUTATION } from '@documenso/lib/constants/trpc';
 import { AppError } from '@documenso/lib/errors/app-error';
@@ -182,15 +183,17 @@ export const VoiceSignatureField = ({
         onRemove={handleRemoveSignature}
       >
         {field.inserted ? (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-muted-foreground text-sm">
-              <Trans>Voice signature completed</Trans>
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <MicIcon className="text-primary mb-1 h-6 w-6" />
+            <span className="text-muted-foreground text-xs">
+              <Trans>Voice Recorded</Trans>
             </span>
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-muted-foreground text-sm">
-              <Trans>Click to add voice signature</Trans>
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <MicIcon className="text-muted-foreground mb-1 h-6 w-6" />
+            <span className="text-muted-foreground text-xs">
+              <Trans>Record Voice</Trans>
             </span>
           </div>
         )}
