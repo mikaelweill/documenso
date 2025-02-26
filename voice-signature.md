@@ -39,6 +39,24 @@ The voice signature feature will integrate with the existing codebase at these k
 4. **Signing Flow**
    - `apps/web/src/app/(signing)/sign/[token]/`: Extend signature field
 
+### Storage Architecture
+
+We'll implement a hybrid storage approach:
+
+1. **Enrollment Videos** (one-time identity verification):
+   - Stored on local disk in development (`local-storage/enrollment-videos/`)
+   - Used only for initial identity verification
+   - Extracted audio patterns stored in database for future verification
+   - In production, would use S3 buckets
+
+2. **Voice Signatures** (regular signing):
+   - Smaller audio files stored directly in database
+   - More efficient for frequent access during document operations
+   - Simpler development workflow
+   - In production, could be migrated to S3 based on performance needs
+
+This approach optimizes for development simplicity while maintaining a clear separation between one-time enrollment and regular signing operations.
+
 ## Implementation Phases
 
 ### Phase 1: Foundation
@@ -47,12 +65,17 @@ The voice signature feature will integrate with the existing codebase at these k
    - Add voice signature fields to signature model
    - Create migrations for schema changes
    
-2. **Basic Voice Recording Component**
+2. **Storage Infrastructure**
+   - Implement local file system storage for enrollment videos
+   - Set up database storage for voice signatures
+   - Create utilities for file handling and conversion
+   
+3. **Basic Voice Recording Component**
    - Create UI for recording, visualization, and playback
    - Implement browser audio recording API integration
    - Add visual feedback (waveform visualization)
 
-3. **Signature Field Extension**
+4. **Signature Field Extension**
    - Add voice signature tab to signature dialog
    - Support basic voice recording during signing
 
@@ -114,6 +137,9 @@ model VoiceEnrollment {
   voicePatternData  Bytes     @db.ByteA
   isActive          Boolean   @default(true)
   
+  // Reference to enrollment video (for development)
+  enrollmentVideoPath String?
+  
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   signatures        Signature[]
 }
@@ -134,11 +160,13 @@ type VoiceSignaturePadProps = {
   defaultValue?: VoiceSignatureData;
   disabled?: boolean;
   promptText?: string;
+  isEnrollment?: boolean; // Whether this is for enrollment (video) or regular signing (audio)
 };
 
 type VoiceSignatureData = {
   audioBlob: Blob;
   audioUrl: string;
+  videoBlob?: Blob; // Only used for enrollment
   transcript?: string;
   duration: number;
   waveformData: number[];
@@ -171,9 +199,10 @@ if (state === 'signed-voice') {
 ### Voice Signature Enrollment
 1. User sets up profile in Documenso
 2. Option to enroll voice for easier future signing
-3. User records verification phrase(s)
-4. System processes and stores voice pattern
-5. Confirmation of successful enrollment
+3. User records verification phrase(s) via **video** recording
+4. System processes video, extracts audio, and stores voice pattern
+5. Video is stored on disk (local dev) or S3 (production) for rare verification needs
+6. Confirmation of successful enrollment
 
 ### Document Signing with Voice
 1. User receives document for signing
@@ -181,8 +210,8 @@ if (state === 'signed-voice') {
 3. Signature dialog opens with voice option
 4. User selects voice signature method
 5. System prompts for recording with instructions
-6. User records signature phrase
-7. System processes recording and confirms validity
+6. User records signature phrase (**audio only**, no video needed)
+7. System processes recording and confirms validity against enrollment
 8. Voice signature is applied to document
 9. Signing is completed
 
@@ -195,18 +224,20 @@ if (state === 'signed-voice') {
 
 ## Technology Stack
 
-1. **Audio Processing**
+1. **Audio/Video Processing**
    - Web Audio API for browser recording
-   - MediaRecorder API for capturing audio
+   - MediaRecorder API for capturing audio and video
    - Web Speech API for basic transcription
+   - FFmpeg.js or similar for video-to-audio extraction
    
 2. **Visualization**
    - Canvas-based waveform visualization
    - Web Audio Analyzer for real-time visualization
    
 3. **Storage**
-   - Secure blob storage for audio files
-   - Database references for metadata
+   - Local file system for enrollment videos (development)
+   - Database for audio signatures (development)
+   - S3 for all media files (production)
    
 4. **Security**
    - Client-side encryption for audio data
@@ -216,17 +247,17 @@ if (state === 'signed-voice') {
 ## Security and Privacy Considerations
 
 1. **Data Protection**
-   - Voice data should be encrypted at rest
+   - Voice and video data should be encrypted at rest
    - Clear data retention policies
    - Options for users to delete voice data
    
 2. **Consent**
-   - Explicit consent for voice recording
-   - Clear privacy notices
+   - Explicit consent for voice/video recording
+   - Clear privacy notices about storage of biometric data
    - Purpose limitation for voice data
    
 3. **Access Controls**
-   - Restricted access to voice recordings
+   - Restricted access to voice recordings and videos
    - Authentication for playback
    - Audit logs for all voice data access
 
@@ -251,6 +282,7 @@ if (state === 'signed-voice') {
 
 1. **Phase 1**: 2-3 weeks
    - Database schema updates
+   - Storage infrastructure setup
    - Basic recording component
    - Signature field integration
    
@@ -267,16 +299,17 @@ if (state === 'signed-voice') {
 ## Risk Assessment
 
 1. **Technical Risks**
-   - Browser compatibility issues with audio APIs
-   - Performance issues with large audio files
-   - Security vulnerabilities in audio processing
+   - Browser compatibility issues with audio/video APIs
+   - Performance issues with large audio/video files
+   - Security vulnerabilities in media processing
    
 2. **User Experience Risks**
-   - Poor microphone quality affecting user experience
+   - Poor microphone/camera quality affecting user experience
    - Privacy concerns reducing adoption
    - Complexity impacting usability
    
 3. **Mitigation Strategies**
    - Progressive enhancement approach
-   - Fallback options for audio recording
-   - Clear privacy controls and explanations 
+   - Fallback options for audio/video recording
+   - Clear privacy controls and explanations
+   - Efficient media processing to reduce file sizes 

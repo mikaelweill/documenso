@@ -74,6 +74,9 @@ model User {
   passkeys           Passkey[]
   avatarImage        AvatarImage?           @relation(fields: [avatarImageId], references: [id], onDelete: SetNull)
 
+  // Voice enrollment relation
+  voiceEnrollments   VoiceEnrollment[]
+
   @@index([email])
 }
 
@@ -469,6 +472,7 @@ enum FieldType {
   RADIO
   CHECKBOX
   DROPDOWN
+  VOICE_SIGNATURE
 }
 
 /// @zod.import(["import { ZFieldMetaNotOptionalSchema } from '@documenso/lib/types/field-meta';"])
@@ -504,11 +508,20 @@ model Signature {
   fieldId                Int      @unique
   signatureImageAsBase64 String?
   typedSignature         String?
+  
+  // Voice signature fields
+  voiceSignatureUrl          String?
+  voiceSignatureTranscript   String?
+  voiceSignatureMetadata     Json?
+  voiceSignatureCreatedAt    DateTime?
+  voiceEnrollmentId          String?
 
   recipient Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   field     Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  voiceEnrollment VoiceEnrollment? @relation(fields: [voiceEnrollmentId], references: [id], onDelete: SetNull)
 
   @@index([recipientId])
+  @@index([voiceEnrollmentId])
 }
 
 model DocumentShareLink {
@@ -779,4 +792,20 @@ model AvatarImage {
 
   team Team[]
   user User[]
+}
+
+// New model for voice enrollment
+model VoiceEnrollment {
+  id                String    @id @default(cuid())
+  userId            Int
+  createdAt         DateTime  @default(now())
+  lastUsedAt        DateTime?
+  voicePatternData  Bytes     @db.ByteA
+  isActive          Boolean   @default(true)
+  
+  // Reference to enrollment video (for development)
+  enrollmentVideoPath String?
+  
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signatures        Signature[]
 }
