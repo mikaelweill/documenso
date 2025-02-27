@@ -262,6 +262,10 @@ export const ZDocumentAuditLogEventDocumentFieldInsertedSchema = z.object({
         data: z.string(),
       }),
       z.object({
+        type: z.literal(FieldType.VOICE_SIGNATURE),
+        data: z.string(),
+      }),
+      z.object({
         type: z.literal(FieldType.RADIO),
         data: z.string(),
       }),
@@ -347,6 +351,10 @@ export const ZDocumentAuditLogEventDocumentFieldPrefilledSchema = z.object({
       }),
       z.object({
         type: z.union([z.literal(FieldType.SIGNATURE), z.literal(FieldType.FREE_SIGNATURE)]),
+        data: z.string(),
+      }),
+      z.object({
+        type: z.literal(FieldType.VOICE_SIGNATURE),
         data: z.string(),
       }),
       z.object({

@@ -78,10 +78,13 @@ export const VoiceSignatureField = ({
 
       const base64Promise = new Promise<string>((resolve) => {
         reader.onloadend = () => {
-          const base64data = reader.result as string;
-          // Remove the data URL prefix
-          const base64 = base64data.split(',')[1];
-          resolve(base64);
+          if (typeof reader.result === 'string') {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          } else {
+            console.error('Expected string result from FileReader');
+            resolve('');
+          }
         };
       });
 
@@ -89,12 +92,22 @@ export const VoiceSignatureField = ({
 
       const base64 = await base64Promise;
 
+      // Create metadata object with transcript
+      const metadata = {
+        transcript: voiceData.transcript || '',
+        duration: voiceData.duration,
+      };
+
+      // Convert metadata to string for storage
+      const metadataValue = JSON.stringify(metadata);
+
       if (onSignField) {
         await onSignField({
           token,
           fieldId: field.id,
           value: base64,
           isBase64: true,
+          metadata: metadataValue, // Add metadata with transcript
         });
       } else {
         await signFieldWithToken({
@@ -102,6 +115,7 @@ export const VoiceSignatureField = ({
           fieldId: field.id,
           value: base64,
           isBase64: true,
+          metadata: metadataValue, // Add metadata with transcript
         });
 
         startTransition(() => {
@@ -207,19 +221,31 @@ export const VoiceSignatureField = ({
             </DialogTitle>
             <DialogDescription>
               <Trans>
-                Please record your voice or upload an audio file to use as your voice signature.
+                Please record your voice signature. Your voice will be automatically transcribed.
               </Trans>
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex items-center justify-center py-4">
             <VoiceSignaturePad
-              className="h-24 w-full"
+              className="h-auto w-full"
               onChange={setVoiceData}
               onValidityChange={setIsValid}
               containerClassName="w-full"
             />
           </div>
+
+          {/* Info about saving with or without transcript */}
+          {voiceData && !voiceData.transcript && (
+            <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-900">
+              <p className="flex items-start gap-2">
+                <span className="mt-0.5 flex-shrink-0">ℹ️</span>
+                <Trans>
+                  You can save your voice signature now, or wait for the transcription to complete.
+                </Trans>
+              </p>
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>

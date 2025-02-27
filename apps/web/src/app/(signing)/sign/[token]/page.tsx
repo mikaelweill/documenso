@@ -17,6 +17,10 @@ import { getUserByEmail } from '@documenso/lib/server-only/user/get-user-by-emai
 import { symmetricDecrypt } from '@documenso/lib/universal/crypto';
 import { extractNextHeaderRequestMetadata } from '@documenso/lib/universal/extract-request-metadata';
 import { extractDocumentAuthMethods } from '@documenso/lib/utils/document-auth';
+import {
+  serializeFieldsForClient,
+  serializeForClientComponents,
+} from '@documenso/lib/utils/serialize-prisma-fields';
 import { DocumentStatus, RecipientRole, SigningStatus } from '@documenso/prisma/client';
 
 import { DocumentAuthProvider } from './document-auth-provider';
@@ -64,7 +68,13 @@ export default async function SigningPage({ params: { token } }: SigningPageProp
     return notFound();
   }
 
-  const recipientWithFields = { ...recipient, fields };
+  // Serialize the fields and recipient to convert Decimal objects to plain numbers
+  const serializedFields = serializeFieldsForClient(fields);
+  const serializedCompletedFields = serializeFieldsForClient(completedFields);
+  const serializedRecipient = serializeForClientComponents(recipient);
+
+  // Create recipientWithFields with serialized data
+  const recipientWithFields = { ...serializedRecipient, fields: serializedFields };
 
   const isRecipientsTurn = await getIsRecipientsTurnToSign({ token });
 
@@ -74,9 +84,11 @@ export default async function SigningPage({ params: { token } }: SigningPageProp
 
   const allRecipients =
     recipient.role === RecipientRole.ASSISTANT
-      ? await getRecipientsForAssistant({
-          token,
-        })
+      ? serializeForClientComponents(
+          await getRecipientsForAssistant({
+            token,
+          }),
+        )
       : [];
 
   const { derivedRecipientAccessAuth } = extractDocumentAuthMethods({
@@ -144,12 +156,15 @@ export default async function SigningPage({ params: { token } }: SigningPageProp
   if (document.deletedAt) {
     return (
       <NoLongerAvailable
-        document={document}
+        document={serializeForClientComponents(document)}
         recipientName={recipient.name}
-        recipientSignature={recipientSignature}
+        recipientSignature={serializeForClientComponents(recipientSignature)}
       />
     );
   }
+
+  // Serialize the document before passing to client components
+  const serializedDocument = serializeForClientComponents(document);
 
   return (
     <SigningProvider
@@ -159,14 +174,14 @@ export default async function SigningPage({ params: { token } }: SigningPageProp
     >
       <DocumentAuthProvider
         documentAuthOptions={document.authOptions}
-        recipient={recipient}
+        recipient={serializedRecipient}
         user={user}
       >
         <SigningPageView
           recipient={recipientWithFields}
-          document={document}
-          fields={fields}
-          completedFields={completedFields}
+          document={serializedDocument}
+          fields={serializedFields}
+          completedFields={serializedCompletedFields}
           isRecipientsTurn={isRecipientsTurn}
           allRecipients={allRecipients}
         />

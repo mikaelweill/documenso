@@ -32,6 +32,7 @@ export type SignFieldWithTokenOptions = {
   fieldId: number;
   value: string;
   isBase64?: boolean;
+  metadata?: string;
   userId?: number;
   authOptions?: TRecipientActionAuth;
   requestMetadata?: RequestMetadata;
@@ -52,6 +53,7 @@ export const signFieldWithToken = async ({
   fieldId,
   value,
   isBase64,
+  metadata,
   userId,
   authOptions,
   requestMetadata,
@@ -188,10 +190,13 @@ export const signFieldWithToken = async ({
   const isSignatureField =
     field.type === FieldType.SIGNATURE || field.type === FieldType.FREE_SIGNATURE;
 
-  let customText = !isSignatureField ? value : undefined;
+  const isVoiceSignatureField = field.type === FieldType.VOICE_SIGNATURE;
+
+  let customText = !isSignatureField && !isVoiceSignatureField ? value : undefined;
 
   const signatureImageAsBase64 = isSignatureField && isBase64 ? value : undefined;
   const typedSignature = isSignatureField && !isBase64 ? value : undefined;
+  const voiceSignatureData = isVoiceSignatureField && isBase64 ? value : undefined;
 
   if (field.type === FieldType.DATE) {
     customText = DateTime.now()
@@ -201,6 +206,10 @@ export const signFieldWithToken = async ({
 
   if (isSignatureField && !signatureImageAsBase64 && !typedSignature) {
     throw new Error('Signature field must have a signature');
+  }
+
+  if (isVoiceSignatureField && !voiceSignatureData) {
+    throw new Error('Voice signature field must have a voice recording');
   }
 
   if (isSignatureField && !documentMeta?.typedSignatureEnabled && typedSignature) {
@@ -243,6 +252,33 @@ export const signFieldWithToken = async ({
       });
     }
 
+    if (isVoiceSignatureField) {
+      const signature = await tx.signature.upsert({
+        where: {
+          fieldId: field.id,
+        },
+        create: {
+          fieldId: field.id,
+          recipientId: field.recipientId,
+          voiceSignatureUrl: voiceSignatureData,
+          voiceSignatureCreatedAt: new Date(),
+          voiceSignatureMetadata: metadata,
+          voiceSignatureTranscript: metadata ? JSON.parse(metadata)?.transcript : undefined,
+        },
+        update: {
+          voiceSignatureUrl: voiceSignatureData,
+          voiceSignatureCreatedAt: new Date(),
+          voiceSignatureMetadata: metadata,
+          voiceSignatureTranscript: metadata ? JSON.parse(metadata)?.transcript : undefined,
+        },
+      });
+
+      // Dirty but I don't want to deal with type information
+      Object.assign(updatedField, {
+        signature,
+      });
+    }
+
     await tx.documentAuditLog.create({
       data: createDocumentAuditLogData({
         type:
@@ -265,6 +301,10 @@ export const signFieldWithToken = async ({
             .with(FieldType.SIGNATURE, FieldType.FREE_SIGNATURE, (type) => ({
               type,
               data: signatureImageAsBase64 || typedSignature || '',
+            }))
+            .with(FieldType.VOICE_SIGNATURE, (type) => ({
+              type,
+              data: voiceSignatureData || '',
             }))
             .with(
               FieldType.DATE,

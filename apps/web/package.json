@@ -39,6 +39,7 @@
     "next-axiom": "^1.5.1",
     "next-plausible": "^3.10.1",
     "next-themes": "^0.2.1",
+    "openai": "^4.85.4",
     "papaparse": "^5.4.1",
     "perfect-freehand": "^1.2.0",
     "posthog-js": "^1.75.3",

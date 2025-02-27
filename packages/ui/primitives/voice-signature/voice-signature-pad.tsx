@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Trans, msg } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
-import { MicIcon, Pause, Play, Square, Upload } from 'lucide-react';
+import { AlertCircle, MicIcon, Pause, Play, Square } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { Button } from '../button';
@@ -13,6 +13,7 @@ import { Card, CardContent } from '../card';
 export type VoiceSignatureDataFormat = {
   audioBlob: Blob;
   duration: number;
+  transcript?: string;
 };
 
 export interface VoiceSignaturePadProps {
@@ -40,6 +41,11 @@ export const VoiceSignaturePad = ({
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+
+  // New states for transcription
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -122,12 +128,100 @@ export const VoiceSignaturePad = ({
     }
   }, [audioData, onValidityChange]);
 
+  // New function to transcribe audio using the Whisper API
+  const transcribeAudio = async (blob: Blob) => {
+    console.log('🎙️ Starting transcription for audio blob', { size: blob.size, type: blob.type });
+    setIsTranscribing(true);
+    setTranscriptionError(null);
+
+    try {
+      // Create form data for the API request
+      const formData = new FormData();
+      formData.append('audio', blob);
+
+      console.log('🎙️ Sending audio to transcription API...');
+      // Send audio to our transcription API
+      const response = await fetch('/api/voice-transcription', {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('🎙️ Transcription API response status:', response.status);
+
+      if (!response.ok) {
+        let errorMessage = `Transcription failed: ${response.statusText}`;
+
+        try {
+          const errorData = await response.json();
+          console.error('🎙️ Transcription API error:', errorData);
+          errorMessage = `${errorMessage}${errorData?.error ? ` - ${errorData.error}` : ''}`;
+        } catch (jsonError) {
+          console.error('🎙️ Failed to parse error response as JSON:', jsonError);
+          // Try to get text content as fallback
+          const textContent = await response.text().catch(() => null);
+          if (textContent) {
+            errorMessage = `${errorMessage} - Raw response: ${textContent.substring(0, 100)}`;
+          }
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      console.log('🎙️ Processing transcription response...');
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (jsonError) {
+        console.error('🎙️ Failed to parse success response as JSON:', jsonError);
+        // Try to get text content as fallback
+        const textContent = await response.text().catch(() => null);
+        throw new Error(
+          `Failed to parse transcription response as JSON. Raw response: ${textContent?.substring(0, 100) || 'empty'}`,
+        );
+      }
+
+      if (responseData.transcript) {
+        console.log(
+          '🎙️ Transcription successful:',
+          responseData.transcript.substring(0, 50) + '...',
+        );
+        setTranscript(responseData.transcript);
+
+        // Update the audio data with the transcript
+        if (audioData) {
+          const updatedAudioData = {
+            ...audioData,
+            transcript: responseData.transcript,
+          };
+
+          setAudioData(updatedAudioData);
+          onChange?.(updatedAudioData);
+        }
+      } else {
+        console.error('🎙️ No transcript in response data:', responseData);
+        throw new Error('No transcript returned from API');
+      }
+    } catch (error) {
+      console.error('🎙️ Transcription error:', error);
+      setTranscriptionError(
+        _(
+          msg`Failed to transcribe audio. Please try again. (${error instanceof Error ? error.message : 'Unknown error'})`,
+        ),
+      );
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
   const startRecording = async () => {
     try {
       setRecordingError(null);
       setRecordingDuration(0);
+      setTranscript(null);
+      setTranscriptionError(null);
 
       // Request microphone access
+      console.log('🎙️ Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream);
 
@@ -144,16 +238,24 @@ export const VoiceSignaturePad = ({
       });
 
       mediaRecorder.addEventListener('start', () => {
+        console.log('🎙️ Recording started');
         timerStartRef.current = Date.now();
         setIsRecording(true);
       });
 
       mediaRecorder.addEventListener('stop', () => {
+        console.log('🎙️ Recording stopped');
         // Calculate actual duration based on recording time
         const actualDuration = Math.floor((Date.now() - timerStartRef.current) / 1000);
         // Ensure we have at least 1 second minimum for valid display
         const safeDuration = Math.max(1, actualDuration);
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+        console.log('🎙️ Audio recording complete:', {
+          size: audioBlob.size,
+          type: audioBlob.type,
+          duration: safeDuration,
+        });
 
         // Set reliable duration immediately
         const safeAudioData = { audioBlob, duration: safeDuration };
@@ -163,16 +265,39 @@ export const VoiceSignaturePad = ({
         // Clean up resources
         setIsRecording(false);
         timerStartRef.current = 0;
+
+        // Start transcription in the background without Promise-related errors
+        handleTranscribeAudio(audioBlob);
       });
 
       // Start recording
+      console.log('🎙️ Starting media recorder');
       mediaRecorder.start();
     } catch (error) {
-      console.error('Error accessing microphone:', error);
+      console.error('🎙️ Error accessing microphone:', error);
       setRecordingError(
         _(msg`Microphone access denied. Please grant permission to use the microphone.`),
       );
     }
+  };
+
+  // Helper function to handle transcription without async/await in event handlers
+  const handleTranscribeAudio = (blob: Blob) => {
+    console.log('🎙️ Starting background transcription');
+    setIsTranscribing(true);
+
+    transcribeAudio(blob)
+      .then(() => {
+        console.log('🎙️ Background transcription completed successfully');
+      })
+      .catch((err: unknown) => {
+        console.error('🎙️ Transcription background process error:', err);
+        setTranscriptionError(
+          _(
+            msg`Transcription failed in the background. You can still save your recording, but without a transcript.`,
+          ),
+        );
+      });
   };
 
   const stopRecording = () => {
@@ -247,157 +372,116 @@ export const VoiceSignaturePad = ({
     return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (file) {
-      // Handle audio file upload
-      if (!file.type.startsWith('audio/')) {
-        setRecordingError(_(msg`Please upload an audio file.`));
-        return;
-      }
-
-      const audio = new Audio();
-      const url = URL.createObjectURL(file);
-
-      audio.src = url;
-      audio.onloadedmetadata = () => {
-        // Get duration with fallback for invalid values
-        let duration = 0;
-
-        try {
-          // Try to get audio duration, default to 10 seconds if not available
-          duration =
-            Number.isFinite(audio.duration) && audio.duration > 0 ? Math.round(audio.duration) : 10;
-        } catch (e) {
-          duration = 10; // Fallback duration
-        }
-
-        // Ensure we have a reasonable duration value
-        const safeDuration = Math.max(1, Math.min(600, duration));
-        const audioBlob = file;
-
-        setAudioData({ audioBlob, duration: safeDuration });
-        onChange?.({ audioBlob, duration: safeDuration });
-
-        URL.revokeObjectURL(url);
-      };
-
-      audio.onerror = () => {
-        setRecordingError(_(msg`Invalid audio file. Please try another file.`));
-        URL.revokeObjectURL(url);
-      };
-
-      // Add a fallback if metadata doesn't load
-      setTimeout(() => {
-        if (!audioData) {
-          const fallbackDuration = 10;
-          setAudioData({ audioBlob: file, duration: fallbackDuration });
-          onChange?.({ audioBlob: file, duration: fallbackDuration });
-          URL.revokeObjectURL(url);
-        }
-      }, 1000);
-    }
-  };
-
   return (
     <div className={cn('w-full', containerClassName)}>
       <Card className={cn('relative overflow-hidden', className)}>
-        <CardContent className="flex items-center justify-between p-4">
-          <div className="flex flex-col">
-            {audioData ? (
-              <>
+        <CardContent className="flex flex-col p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              {audioData ? (
+                <>
+                  <span className="font-medium">
+                    <Trans>Voice Recording</Trans>
+                    {isPlaying
+                      ? ` (${formatTime(playbackPosition)}/${formatTime(audioData?.duration)})`
+                      : ` (${formatTime(audioData?.duration)})`}
+                  </span>
+                  <audio ref={audioRef} className="hidden" />
+                </>
+              ) : (
                 <span className="font-medium">
-                  <Trans>Voice Recording</Trans>
-                  {isPlaying
-                    ? ` (${formatTime(playbackPosition)}/${formatTime(audioData?.duration)})`
-                    : ` (${formatTime(audioData?.duration)})`}
+                  {isRecording ? (
+                    <Trans>Recording... {formatTime(recordingDuration)}</Trans>
+                  ) : (
+                    <Trans>Click to record your voice</Trans>
+                  )}
                 </span>
-                <audio ref={audioRef} className="hidden" />
-              </>
-            ) : (
-              <span className="font-medium">
-                {isRecording ? (
-                  <Trans>Recording... {formatTime(recordingDuration)}</Trans>
-                ) : (
-                  <Trans>Click to record or upload</Trans>
-                )}
-              </span>
-            )}
+              )}
 
-            {recordingError && (
-              <span className="text-destructive mt-1 text-sm">{recordingError}</span>
-            )}
-          </div>
+              {recordingError && (
+                <span className="text-destructive mt-1 text-sm">{recordingError}</span>
+              )}
+            </div>
 
-          <div className="flex gap-2">
-            {audioData ? (
-              <>
-                {isPlaying ? (
-                  <Button size="sm" variant="outline" onClick={pauseAudio} disabled={disabled}>
-                    <Pause className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={playAudio} disabled={disabled}>
-                    <Play className="h-4 w-4" />
-                  </Button>
-                )}
+            <div className="flex gap-2">
+              {audioData ? (
+                <>
+                  {isPlaying ? (
+                    <Button size="sm" variant="outline" onClick={pauseAudio} disabled={disabled}>
+                      <Pause className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={playAudio} disabled={disabled}>
+                      <Play className="h-4 w-4" />
+                    </Button>
+                  )}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setAudioData(null);
-                    setPlaybackPosition(0);
-                    onChange?.(null);
-                  }}
-                  disabled={disabled}
-                >
-                  <Trans>Clear</Trans>
-                </Button>
-              </>
-            ) : (
-              <>
-                {isRecording ? (
                   <Button
                     size="sm"
-                    variant="destructive"
-                    onClick={stopRecording}
+                    variant="outline"
+                    onClick={() => {
+                      setAudioData(null);
+                      setPlaybackPosition(0);
+                      setTranscript(null);
+                      onChange?.(null);
+                    }}
                     disabled={disabled}
                   >
-                    <Square className="mr-2 h-4 w-4" />
-                    <Trans>Stop</Trans>
+                    <Trans>Clear</Trans>
                   </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={startRecording}
-                    disabled={disabled}
-                  >
-                    <MicIcon className="mr-2 h-4 w-4" />
-                    <Trans>Record</Trans>
-                  </Button>
-                )}
-
-                <div className="relative">
-                  <Button size="sm" variant="outline" disabled={disabled} asChild>
-                    <label>
-                      <Upload className="mr-2 h-4 w-4" />
-                      <Trans>Upload</Trans>
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        className="absolute inset-0 cursor-pointer opacity-0"
-                        onChange={handleFileUpload}
-                        disabled={disabled}
-                      />
-                    </label>
-                  </Button>
-                </div>
-              </>
-            )}
+                </>
+              ) : (
+                <>
+                  {isRecording ? (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={stopRecording}
+                      disabled={disabled}
+                    >
+                      <Square className="mr-2 h-4 w-4" />
+                      <Trans>Stop</Trans>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={startRecording}
+                      disabled={disabled}
+                    >
+                      <MicIcon className="mr-2 h-4 w-4" />
+                      <Trans>Record</Trans>
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Transcription UI */}
+          {isTranscribing && (
+            <div className="bg-muted mt-4 rounded-md px-4 py-2">
+              <p className="animate-pulse text-sm font-medium">
+                <Trans>Transcribing your voice...</Trans>
+              </p>
+            </div>
+          )}
+
+          {transcriptionError && (
+            <div className="bg-destructive/10 mt-4 flex items-start gap-2 rounded-md px-4 py-2">
+              <AlertCircle className="text-destructive mt-0.5 h-4 w-4 flex-shrink-0" />
+              <p className="text-destructive text-sm">{transcriptionError}</p>
+            </div>
+          )}
+
+          {transcript && (
+            <div className="bg-accent/20 mt-4 rounded-md px-4 py-3">
+              <p className="text-accent-foreground/70 mb-1 text-xs font-semibold uppercase">
+                <Trans>Transcript</Trans>
+              </p>
+              <p className="text-sm">{transcript}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
