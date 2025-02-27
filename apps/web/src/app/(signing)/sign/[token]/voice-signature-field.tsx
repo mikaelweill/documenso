@@ -56,6 +56,7 @@ export const VoiceSignatureField = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [voiceData, setVoiceData] = useState<VoiceSignatureDataFormat | null>(null);
   const [isValid, setIsValid] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const { mutateAsync: signFieldWithToken, isPending: isSignFieldWithTokenLoading } =
     trpc.field.signFieldWithToken.useMutation(DO_NOT_INVALIDATE_QUERY_ON_MUTATION);
@@ -229,14 +230,18 @@ export const VoiceSignatureField = ({
           <div className="flex items-center justify-center py-4">
             <VoiceSignaturePad
               className="h-auto w-full"
-              onChange={setVoiceData}
+              onChange={(data) => {
+                setVoiceData(data);
+                // Track transcription state from the child component
+                setIsTranscribing(data?.transcript === undefined && data !== null);
+              }}
               onValidityChange={setIsValid}
               containerClassName="w-full"
             />
           </div>
 
           {/* Info about saving with or without transcript */}
-          {voiceData && !voiceData.transcript && (
+          {voiceData && isTranscribing && (
             <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-900">
               <p className="flex items-start gap-2">
                 <span className="mt-0.5 flex-shrink-0">ℹ️</span>

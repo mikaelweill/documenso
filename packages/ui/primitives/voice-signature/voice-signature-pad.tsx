@@ -137,6 +137,15 @@ export const VoiceSignaturePad = ({
     try {
       // Create form data for the API request
       const formData = new FormData();
+
+      // Convert blob to a format more likely to be accepted by OpenAI
+      // OpenAI supports: 'flac', 'm4a', 'mp3', 'mp4', 'mpeg', 'mpga', 'oga', 'ogg', 'wav', 'webm'
+
+      // Extract format from blob type (audio/webm -> webm)
+      const originalFormat = blob.type.split('/')[1]?.split(';')[0] || '';
+      console.log(`🎙️ Original audio format: ${originalFormat}`);
+
+      // Add file to form data
       formData.append('audio', blob);
 
       console.log('🎙️ Sending audio to transcription API...');
@@ -225,8 +234,16 @@ export const VoiceSignaturePad = ({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream);
 
-      // Create media recorder
-      const mediaRecorder = new MediaRecorder(stream);
+      // Create media recorder with a format compatible with OpenAI Whisper
+      // Try to use mp3 format if supported, otherwise fall back to webm
+      const mimeType = MediaRecorder.isTypeSupported('audio/mp3')
+        ? 'audio/mp3'
+        : MediaRecorder.isTypeSupported('audio/wav')
+          ? 'audio/wav'
+          : 'audio/webm';
+
+      console.log(`🎙️ Using media recorder with MIME type: ${mimeType}`);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       setRecorder(mediaRecorder);
 
       const audioChunks: Blob[] = [];
@@ -249,7 +266,9 @@ export const VoiceSignaturePad = ({
         const actualDuration = Math.floor((Date.now() - timerStartRef.current) / 1000);
         // Ensure we have at least 1 second minimum for valid display
         const safeDuration = Math.max(1, actualDuration);
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+        // Create blob with the same MIME type that was used to record
+        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
 
         console.log('🎙️ Audio recording complete:', {
           size: audioBlob.size,

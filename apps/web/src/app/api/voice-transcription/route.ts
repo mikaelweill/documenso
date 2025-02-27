@@ -107,9 +107,15 @@ export async function POST(request: NextRequest) {
     const TIMEOUT_MS = 30000; // 30 seconds timeout
 
     try {
+      // Create a file with proper extension to help OpenAI detect the format
+      const fileExtension = supportedFormats.includes(format) ? format : 'webm';
+      const fileName = `audio-${Date.now()}.${fileExtension}`;
+
+      console.log(`📊 Using filename: ${fileName} with extension: ${fileExtension}`);
+
       const transcriptionResponse = await Promise.race([
         openai.audio.transcriptions.create({
-          file: new File([await audioFile.arrayBuffer()], audioFile.name, { type: audioFile.type }),
+          file: new File([await audioFile.arrayBuffer()], fileName, { type: audioFile.type }),
           model: 'whisper-1',
           language: 'en',
           response_format: 'text',
