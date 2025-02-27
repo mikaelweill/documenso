@@ -151,7 +151,7 @@ export const DocumentReadOnlyFields = ({
                       ),
                     )
                     .with({ type: FieldType.FREE_SIGNATURE }, () => null)
-                    .exhaustive()}
+                    .otherwise(() => null)}
 
                 {field.recipient.signingStatus === SigningStatus.NOT_SIGNED && (
                   <p

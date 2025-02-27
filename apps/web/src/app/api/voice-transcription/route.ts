@@ -12,15 +12,21 @@ function getApiKey() {
   return process.env['OPENAI_' + 'API_KEY'] || '';
 }
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Increase limit for audio files
-    },
-    // Set a longer timeout for the API endpoint
-    responseLimit: false,
-  },
-};
+// Replace the deprecated config export
+// export const config = {
+//   api: {
+//     bodyParser: {
+//       sizeLimit: '10mb', // Increase limit for audio files
+//     },
+//     // Set a longer timeout for the API endpoint
+//     responseLimit: false,
+//   },
+// };
+
+// With the new format
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Seconds
+export const runtime = 'nodejs';
 
 // Utility to create a timeout promise
 const timeout = async (ms: number) => {

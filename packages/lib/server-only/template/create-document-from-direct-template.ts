@@ -521,7 +521,14 @@ export const createDocumentFromDirectTemplate = async ({
                   data: field.customText,
                 }),
               )
-              .exhaustive(),
+              .with(FieldType.VOICE_SIGNATURE, (type) => ({
+                type,
+                data: field.signature?.voiceSignatureTranscript || '',
+              }))
+              .otherwise((type) => ({
+                type,
+                data: '',
+              })),
             fieldSecurity: derivedRecipientActionAuth
               ? {
                   type: derivedRecipientActionAuth,

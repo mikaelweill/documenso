@@ -7,6 +7,7 @@ import {
   Disc,
   Hash,
   Mail,
+  Mic,
   Type,
   User,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const fieldIcons = {
   [FieldType.RADIO]: { icon: Disc, label: 'Radio' },
   [FieldType.CHECKBOX]: { icon: CheckSquare, label: 'Checkbox' },
   [FieldType.DROPDOWN]: { icon: ChevronDown, label: 'Select' },
+  [FieldType.VOICE_SIGNATURE]: { icon: Mic, label: 'Voice Signature' },
 };
 
 export const FieldIcon = ({
@@ -50,6 +52,14 @@ export const FieldIcon = ({
         )}
       >
         <Trans>Signature</Trans>
+      </div>
+    );
+  } else if (type === 'VOICE_SIGNATURE') {
+    const Icon = fieldIcons[FieldType.VOICE_SIGNATURE].icon;
+    return (
+      <div className="text-field-card-foreground flex items-center justify-center gap-x-1.5 text-[clamp(0.425rem,25cqw,0.825rem)]">
+        <Icon className="h-[clamp(0.625rem,20cqw,0.925rem)] w-[clamp(0.625rem,20cqw,0.925rem)]" />{' '}
+        {fieldIcons[FieldType.VOICE_SIGNATURE].label}
       </div>
     );
   } else {

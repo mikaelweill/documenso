@@ -273,6 +273,17 @@ export const signFieldWithToken = async ({
         },
       });
 
+      // Add debug logging
+      console.log('🔍 Server: Voice signature saved to database:', {
+        fieldId: field.id,
+        hasMetadata: !!metadata,
+        extractedTranscript: metadata
+          ? JSON.parse(metadata)?.transcript?.substring(0, 50)
+          : undefined,
+        savedTranscriptField: signature.voiceSignatureTranscript?.substring(0, 50),
+        metadataLength: metadata?.length,
+      });
+
       // Dirty but I don't want to deal with type information
       Object.assign(updatedField, {
         signature,

@@ -74,6 +74,14 @@ export const VoiceSignatureField = ({
     }
 
     try {
+      // Debug logging
+      console.log('🔍 Voice data before saving:', {
+        hasTranscript: !!voiceData.transcript,
+        transcriptLength: voiceData.transcript?.length || 0,
+        transcript: voiceData.transcript?.substring(0, 50), // Log first 50 chars
+        duration: voiceData.duration,
+      });
+
       // Convert audio blob to base64 string
       const reader = new FileReader();
 
@@ -101,6 +109,13 @@ export const VoiceSignatureField = ({
 
       // Convert metadata to string for storage
       const metadataValue = JSON.stringify(metadata);
+
+      // Debug logging
+      console.log('🔍 Metadata being saved:', {
+        metadataValue: metadataValue.substring(0, 50), // Log first 50 chars
+        metadataLength: metadataValue.length,
+        parsedBack: JSON.parse(metadataValue),
+      });
 
       if (onSignField) {
         await onSignField({

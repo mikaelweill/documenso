@@ -1060,7 +1060,15 @@ export const ApiContractV1Implementation = createNextRoute(ApiContractV1, {
                 error: 'FREE_SIGNATURE is not supported',
                 data: undefined,
               }))
-              .exhaustive();
+              .with('VOICE_SIGNATURE', () => ({
+                success: true,
+                data: undefined,
+              }))
+              .otherwise(() => ({
+                success: false,
+                error: 'Unsupported field type',
+                data: undefined,
+              }));
 
             if (!result.success) {
               throw new Error('Field meta parsing failed');

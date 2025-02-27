@@ -32,7 +32,7 @@ The voice signature feature has been integrated with the existing codebase at th
    
 2. **Core Signing Logic**
    - ✅ `packages/lib/server-only/field/sign-field-with-token.ts`: Updated to handle voice signatures
-   
+
 3. **UI Components**
    - ✅ `packages/ui/primitives/voice-signature/voice-signature-pad.tsx`: Created voice recording component
    

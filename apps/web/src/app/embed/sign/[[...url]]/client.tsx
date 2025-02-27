@@ -256,6 +256,11 @@ export const EmbedSignDocumentClientPage = ({
           created: new Date(),
           signatureImageAsBase64: signature?.startsWith('data:') ? signature : null,
           typedSignature: signature?.startsWith('data:') ? null : signature,
+          voiceSignatureUrl: null,
+          voiceSignatureTranscript: null,
+          voiceSignatureMetadata: null,
+          voiceSignatureCreatedAt: null,
+          voiceEnrollmentId: null,
         }}
       />
     );
