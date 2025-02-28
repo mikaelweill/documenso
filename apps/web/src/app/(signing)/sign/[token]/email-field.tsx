@@ -38,7 +38,7 @@ export const EmailField = ({ field, onSignField, onUnsignField }: EmailFieldProp
   const { toast } = useToast();
 
   const { email: providedEmail } = useRequiredSigningContext();
-  const { recipient, targetSigner, isAssistantMode } = useRecipientContext();
+  const { recipient, isAssistantMode } = useRecipientContext();
 
   const [isPending, startTransition] = useTransition();
 

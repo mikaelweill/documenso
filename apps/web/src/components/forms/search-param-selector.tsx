@@ -20,7 +20,7 @@ export const SearchParamSelector = ({ children, paramKey, isValueValid }: Search
     const p = searchParams?.get(paramKey) ?? 'all';
 
     return isValueValid(p) ? p : 'all';
-  }, [searchParams]);
+  }, [searchParams, paramKey, isValueValid]);
 
   const onValueChange = (newValue: string) => {
     if (!pathname) {
