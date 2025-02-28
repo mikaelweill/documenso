@@ -40,6 +40,11 @@ export type VoiceSignatureFieldProps = {
   onUnsignField?: (value: TRemovedSignedFieldWithTokenMutationSchema) => Promise<void> | void;
 };
 
+const truncateText = (text: string, maxLength: number): string => {
+  if (!text) return '';
+  return text.length <= maxLength ? text : `${text.substring(0, maxLength)}...`;
+};
+
 export const VoiceSignatureField = ({
   field,
   onSignField,
@@ -58,6 +63,7 @@ export const VoiceSignatureField = ({
   const [isValid, setIsValid] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
 
   const { mutateAsync: signFieldWithToken, isPending: isSignFieldWithTokenLoading } =
     trpc.field.signFieldWithToken.useMutation(DO_NOT_INVALIDATE_QUERY_ON_MUTATION);
@@ -320,11 +326,28 @@ export const VoiceSignatureField = ({
         onRemove={handleRemoveSignature}
       >
         {field.inserted ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
+          <div
+            className="flex h-full cursor-pointer flex-col items-center justify-center text-center"
+            onClick={() => field.signature?.voiceSignatureMetadata && setReviewDialogOpen(true)}
+          >
             <MicIcon className="text-primary mb-1 h-6 w-6" />
-            <span className="text-muted-foreground text-xs">
-              <Trans>Voice Recorded</Trans>
-            </span>
+            {field.signature?.voiceSignatureTranscript ? (
+              <div className="flex flex-col gap-0.5">
+                <span className="text-muted-foreground text-xs">
+                  <Trans>Voice Recorded</Trans>
+                </span>
+                <span className="text-foreground line-clamp-1 text-xs font-light italic">
+                  "{truncateText(field.signature.voiceSignatureTranscript, 20)}"
+                </span>
+                <span className="mt-1 text-xs text-blue-500 hover:underline">
+                  <Trans>Click to review</Trans>
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-xs">
+                <Trans>Voice Recorded</Trans>
+              </span>
+            )}
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center text-center">
@@ -386,6 +409,50 @@ export const VoiceSignatureField = ({
               disabled={!isValid || isLoading}
             >
               {isTranscribing ? <Trans>Wait & Save</Trans> : <Trans>Save</Trans>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Dialog for existing voice signatures */}
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              <Trans>Voice Signature Review</Trans>
+            </DialogTitle>
+            <DialogDescription>
+              <Trans>Review your recorded voice signature and transcript.</Trans>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4">
+            {field.signature?.voiceSignatureTranscript && (
+              <div className="rounded-md border p-4">
+                <h3 className="mb-2 text-sm font-medium">
+                  <Trans>Transcript</Trans>
+                </h3>
+                <p className="text-sm italic">"{field.signature.voiceSignatureTranscript}"</p>
+              </div>
+            )}
+
+            {field.signature?.signatureImageAsBase64 && (
+              <div>
+                <h3 className="mb-2 text-sm font-medium">
+                  <Trans>Voice Recording</Trans>
+                </h3>
+                <audio
+                  src={`data:audio/webm;base64,${field.signature.signatureImageAsBase64}`}
+                  controls
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setReviewDialogOpen(false)}>
+              <Trans>Close</Trans>
             </Button>
           </DialogFooter>
         </DialogContent>
