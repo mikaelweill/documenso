@@ -45,6 +45,7 @@ import type { Field, Recipient } from '@documenso/prisma/client';
 import { FieldType, RecipientRole, SendStatus } from '@documenso/prisma/client';
 
 import { FieldToolTip } from '../../components/field/field-tooltip';
+import { VoiceSignatureIcon } from '../../icons/voice-signature';
 import { getSignerColorStyles, useSignerColors } from '../../lib/signer-colors';
 import { cn } from '../../lib/utils';
 import { Alert, AlertDescription } from '../alert';
@@ -845,6 +846,32 @@ export const AddFieldsFormPartial = ({
                             )}
                           >
                             <Trans>Signature</Trans>
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="group h-full w-full"
+                      onClick={() => setSelectedField(FieldType.VOICE_SIGNATURE)}
+                      onMouseDown={() => setSelectedField(FieldType.VOICE_SIGNATURE)}
+                      data-selected={selectedField === FieldType.VOICE_SIGNATURE ? true : undefined}
+                    >
+                      <Card
+                        className={cn(
+                          'flex h-full w-full cursor-pointer items-center justify-center group-disabled:opacity-50',
+                          // selectedSignerStyles.borderClass,
+                        )}
+                      >
+                        <CardContent className="flex flex-col items-center justify-center px-6 py-4">
+                          <p
+                            className={cn(
+                              'text-muted-foreground group-data-[selected]:text-foreground flex items-center justify-center gap-x-1.5 text-sm font-normal',
+                            )}
+                          >
+                            <VoiceSignatureIcon className="h-4 w-4" />
+                            <Trans>Voice</Trans>
                           </p>
                         </CardContent>
                       </Card>
