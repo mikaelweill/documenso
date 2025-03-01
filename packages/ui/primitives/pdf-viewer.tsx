@@ -26,6 +26,10 @@ export type LoadedPDFDocument = PDFDocumentProxy;
  */
 pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.js`;
 
+// Increase the maximum canvas size to handle larger PDFs
+// @ts-expect-error - This property exists in PDF.js but TypeScript definitions might be outdated
+pdfjs.MaxCanvasPixels = 16777216; // 4096 * 4096
+
 export type OnPDFViewerPageClick = (_event: {
   pageNumber: number;
   numPages: number;
@@ -153,14 +157,25 @@ export const PDFViewer = ({
     const fetchDocumentBytes = async () => {
       try {
         setIsDocumentBytesLoading(true);
+        setPdfError(false);
 
         const bytes = await getFile(memoizedData);
 
-        setDocumentBytes(bytes);
+        // Create a new copy of the bytes to avoid detached ArrayBuffer issues
+        // This defensive copy ensures we're not using a transferred buffer
+        if (bytes) {
+          const safeBytes = new Uint8Array(bytes);
+          setDocumentBytes(safeBytes);
+        } else {
+          console.error('Failed to load document: Empty bytes received');
+          setPdfError(true);
+        }
 
         setIsDocumentBytesLoading(false);
       } catch (err) {
-        console.error(err);
+        console.error('Error loading document:', err);
+        setPdfError(true);
+        setIsDocumentBytesLoading(false);
 
         toast({
           title: _(msg`Error`),
@@ -171,7 +186,7 @@ export const PDFViewer = ({
     };
 
     void fetchDocumentBytes();
-  }, [memoizedData, toast]);
+  }, [memoizedData, toast, _]);
 
   return (
     <div ref={$el} className={cn('overflow-hidden', className)} {...props}>
@@ -186,7 +201,11 @@ export const PDFViewer = ({
       ) : (
         <>
           <PDFDocument
-            file={documentBytes.buffer}
+            file={{
+              data: documentBytes?.buffer
+                ? new Uint8Array(documentBytes.buffer.slice(0))
+                : new Uint8Array(),
+            }}
             className={cn('w-full overflow-hidden rounded', {
               'h-[80vh] max-h-[60rem]': numPages === 0,
             })}

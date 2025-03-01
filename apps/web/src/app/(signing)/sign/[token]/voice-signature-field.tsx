@@ -93,12 +93,85 @@ export const VoiceSignatureField = ({
     (transcript: string): boolean => {
       if (!requiredPhrase || !transcript) return true;
 
-      const normalizedTranscript = transcript.trim().toLowerCase();
-      const normalizedRequiredPhrase = requiredPhrase.trim().toLowerCase();
+      // Normalize by:
+      // 1. Converting to lowercase
+      // 2. Removing all punctuation
+      // 3. Trimming whitespace
+      // 4. Converting multiple spaces to single spaces
+      const normalize = (text: string): string => {
+        return text
+          .toLowerCase()
+          .replace(/[.,/#!$%^&*;:{}=\-_`~()'"]/g, '') // Remove punctuation
+          .trim()
+          .replace(/\s+/g, ' '); // Normalize whitespace
+      };
+
+      const normalizedTranscript = normalize(transcript);
+      const normalizedRequiredPhrase = normalize(requiredPhrase);
+
+      console.log('Transcript verification:', {
+        original: {
+          transcript,
+          requiredPhrase,
+        },
+        normalized: {
+          transcript: normalizedTranscript,
+          requiredPhrase: normalizedRequiredPhrase,
+        },
+        strictMatching,
+      });
 
       if (strictMatching) {
-        return normalizedTranscript === normalizedRequiredPhrase;
+        // For strict matching, we'll still compare the normalized strings
+        // but we'll be more lenient with minor differences
+
+        // Check for exact match after normalization
+        if (normalizedTranscript === normalizedRequiredPhrase) {
+          return true;
+        }
+
+        // Split into words for more detailed comparison
+        const requiredWords = normalizedRequiredPhrase.split(/\s+/).filter(Boolean);
+        const transcriptWords = normalizedTranscript.split(/\s+/).filter(Boolean);
+
+        // Check if all words are present in the same order with minor tolerance
+        // for extra words (like "um", "uh", etc.)
+        let reqIndex = 0;
+        let transIndex = 0;
+
+        // Allow up to 2 missing words from the required phrase
+        const maxMissingWords = Math.min(2, Math.floor(requiredWords.length * 0.1));
+        let missingWords = 0;
+
+        while (reqIndex < requiredWords.length && transIndex < transcriptWords.length) {
+          const reqWord = requiredWords[reqIndex];
+          const transWord = transcriptWords[transIndex];
+
+          if (transWord === reqWord || transWord.includes(reqWord) || reqWord.includes(transWord)) {
+            // Word match found
+            reqIndex++;
+            transIndex++;
+          } else {
+            // Check next word in transcript
+            transIndex++;
+
+            // If we've looked too far ahead without finding a match
+            if (transIndex - reqIndex > 3) {
+              // Move required word pointer and count as missing
+              reqIndex++;
+              missingWords++;
+
+              if (missingWords > maxMissingWords) {
+                return false;
+              }
+            }
+          }
+        }
+
+        // If we've processed all required words or have an acceptable number of missing words
+        return reqIndex >= requiredWords.length - maxMissingWords;
       } else {
+        // Non-strict matching (more lenient) - unchanged
         const requiredWords = normalizedRequiredPhrase.split(/\s+/).filter(Boolean);
         const transcriptWords = normalizedTranscript.split(/\s+/).filter(Boolean);
 
