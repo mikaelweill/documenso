@@ -299,8 +299,8 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
       // Extract transcript from voice signature
       const transcript = field.signature?.voiceSignatureTranscript || 'Voice signature';
 
-      // Format text with a prefix to indicate voice signature
-      const displayText = `🎤 ${transcript}`;
+      // Format text with a visual indicator for voice signature
+      const displayText = `[VOICE] ${transcript}`;
 
       // Calculate text dimensions and position - following the same pattern as other text fields
       const longestLineInTextForWidth = displayText
@@ -317,6 +317,7 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
       textWidth = font.widthOfTextAtSize(longestLineInTextForWidth, fontSize);
       textHeight = font.heightAtSize(fontSize);
 
+      // Center the text within field
       let textX = fieldX + (fieldWidth - textWidth) / 2;
       let textY = fieldY + (fieldHeight - textHeight) / 2;
 
@@ -336,7 +337,7 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
         textY = adjustedPosition.yPos;
       }
 
-      // Draw the transcript text
+      // Draw the voice signature text with the prefix
       page.drawText(displayText, {
         x: textX,
         y: textY,
