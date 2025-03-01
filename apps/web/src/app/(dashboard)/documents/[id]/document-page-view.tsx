@@ -116,12 +116,16 @@ export const DocumentPageView = async ({ params, team }: DocumentPageViewProps) 
     documentMeta.password = securePassword;
   }
 
-  const [recipients, fields] = await Promise.all([
-    getRecipientsForDocument({
-      documentId,
-      teamId: team?.id,
-      userId: user.id,
-    }),
+  const recipients = await getRecipientsForDocument({
+    documentId: document.id,
+    userId: user.id,
+    teamId: team?.id,
+    includeSignatures: true,
+  });
+
+  document.recipients = recipients;
+
+  const [fields] = await Promise.all([
     getFieldsForDocument({
       documentId,
       userId: user.id,

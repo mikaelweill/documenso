@@ -295,6 +295,56 @@ export const insertFieldInPDF = async (pdf: PDFDocument, field: FieldWithSignatu
         }
       }
     })
+    .with({ type: FieldType.VOICE_SIGNATURE }, (field) => {
+      // Extract transcript from voice signature
+      const transcript = field.signature?.voiceSignatureTranscript || 'Voice signature';
+
+      // Format text with a prefix to indicate voice signature
+      const displayText = `🎤 ${transcript}`;
+
+      // Calculate text dimensions and position - following the same pattern as other text fields
+      const longestLineInTextForWidth = displayText
+        .split('\n')
+        .sort((a, b) => b.length - a.length)[0];
+
+      let fontSize = maxFontSize;
+      let textWidth = font.widthOfTextAtSize(longestLineInTextForWidth, fontSize);
+      let textHeight = font.heightAtSize(fontSize);
+
+      const scalingFactor = Math.min(fieldWidth / textWidth, fieldHeight / textHeight, 1);
+      fontSize = Math.max(Math.min(fontSize * scalingFactor, maxFontSize), minFontSize);
+
+      textWidth = font.widthOfTextAtSize(longestLineInTextForWidth, fontSize);
+      textHeight = font.heightAtSize(fontSize);
+
+      let textX = fieldX + (fieldWidth - textWidth) / 2;
+      let textY = fieldY + (fieldHeight - textHeight) / 2;
+
+      // Invert the Y axis since PDFs use a bottom-left coordinate system
+      textY = pageHeight - textY - textHeight;
+
+      if (pageRotationInDegrees !== 0) {
+        const adjustedPosition = adjustPositionForRotation(
+          pageWidth,
+          pageHeight,
+          textX,
+          textY,
+          pageRotationInDegrees,
+        );
+
+        textX = adjustedPosition.xPos;
+        textY = adjustedPosition.yPos;
+      }
+
+      // Draw the transcript text
+      page.drawText(displayText, {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        font,
+        rotate: degrees(pageRotationInDegrees),
+      });
+    })
     .otherwise((field) => {
       const fieldMetaParsers = {
         [FieldType.TEXT]: ZTextFieldMeta,

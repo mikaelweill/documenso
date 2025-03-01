@@ -4,12 +4,14 @@ export interface GetRecipientsForDocumentOptions {
   documentId: number;
   userId: number;
   teamId?: number;
+  includeSignatures?: boolean;
 }
 
 export const getRecipientsForDocument = async ({
   documentId,
   userId,
   teamId,
+  includeSignatures = false,
 }: GetRecipientsForDocumentOptions) => {
   const recipients = await prisma.recipient.findMany({
     where: {
@@ -30,6 +32,11 @@ export const getRecipientsForDocument = async ({
             teamId: null,
           },
     },
+    include: includeSignatures
+      ? {
+          signatures: true,
+        }
+      : undefined,
     orderBy: {
       id: 'asc',
     },

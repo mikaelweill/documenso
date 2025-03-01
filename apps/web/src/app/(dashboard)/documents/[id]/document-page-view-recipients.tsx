@@ -18,18 +18,23 @@ import { match } from 'ts-pattern';
 
 import { RECIPIENT_ROLES_DESCRIPTION } from '@documenso/lib/constants/recipient-roles';
 import { formatSigningLink } from '@documenso/lib/utils/recipients';
-import type { Document, Recipient } from '@documenso/prisma/client';
+import type { Document, Recipient, Signature } from '@documenso/prisma/client';
 import { DocumentStatus, RecipientRole, SigningStatus } from '@documenso/prisma/client';
 import { CopyTextButton } from '@documenso/ui/components/common/copy-text-button';
 import { SignatureIcon } from '@documenso/ui/icons/signature';
 import { AvatarWithText } from '@documenso/ui/primitives/avatar';
 import { Badge } from '@documenso/ui/primitives/badge';
+import { VoiceSignatureDisplay } from '@documenso/ui/primitives/document/voice-signature-display';
 import { PopoverHover } from '@documenso/ui/primitives/popover';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 export type DocumentPageViewRecipientsProps = {
   document: Document & {
-    recipients: Recipient[];
+    recipients: Array<
+      Recipient & {
+        signatures?: Signature[];
+      }
+    >;
   };
   documentRootPath: string;
 };
@@ -72,109 +77,129 @@ export const DocumentPageViewRecipients = ({
           </li>
         )}
 
-        {recipients.map((recipient) => (
-          <li key={recipient.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <AvatarWithText
-              avatarFallback={recipient.email.slice(0, 1).toUpperCase()}
-              primaryText={<p className="text-muted-foreground text-sm">{recipient.email}</p>}
-              secondaryText={
-                <p className="text-muted-foreground/70 text-xs">
-                  {_(RECIPIENT_ROLES_DESCRIPTION[recipient.role].roleName)}
-                </p>
-              }
-            />
+        {recipients.map((recipient) => {
+          // Get the voice signature if available
+          const voiceSignature = recipient.signatures?.find(
+            (sig) => sig.voiceSignatureUrl && sig.voiceSignatureUrl.length > 0,
+          );
 
-            <div className="flex flex-row items-center">
-              {document.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.SIGNED && (
-                  <Badge variant="default">
-                    {match(recipient.role)
-                      .with(RecipientRole.APPROVER, () => (
-                        <>
-                          <CheckIcon className="mr-1 h-3 w-3" />
-                          <Trans>Approved</Trans>
-                        </>
-                      ))
-                      .with(RecipientRole.CC, () =>
-                        document.status === DocumentStatus.COMPLETED ? (
-                          <>
-                            <MailIcon className="mr-1 h-3 w-3" />
-                            <Trans>Sent</Trans>
-                          </>
-                        ) : (
-                          <>
-                            <CheckIcon className="mr-1 h-3 w-3" />
-                            <Trans>Ready</Trans>
-                          </>
-                        ),
-                      )
+          return (
+            <li
+              key={recipient.id}
+              className="flex items-center justify-between px-4 py-2.5 text-sm"
+            >
+              <AvatarWithText
+                avatarFallback={recipient.email.slice(0, 1).toUpperCase()}
+                primaryText={<p className="text-muted-foreground text-sm">{recipient.email}</p>}
+                secondaryText={
+                  <p className="text-muted-foreground/70 text-xs">
+                    {_(RECIPIENT_ROLES_DESCRIPTION[recipient.role].roleName)}
+                  </p>
+                }
+              />
 
-                      .with(RecipientRole.SIGNER, () => (
-                        <>
-                          <SignatureIcon className="mr-1 h-3 w-3" />
-                          <Trans>Signed</Trans>
-                        </>
-                      ))
-                      .with(RecipientRole.VIEWER, () => (
-                        <>
-                          <MailOpenIcon className="mr-1 h-3 w-3" />
-                          <Trans>Viewed</Trans>
-                        </>
-                      ))
-                      .with(RecipientRole.ASSISTANT, () => (
-                        <>
-                          <UserIcon className="mr-1 h-3 w-3" />
-                          <Trans>Assisted</Trans>
-                        </>
-                      ))
-                      .exhaustive()}
-                  </Badge>
-                )}
+              <div className="flex flex-row items-center gap-2">
+                {document.status !== DocumentStatus.DRAFT &&
+                  recipient.signingStatus === SigningStatus.SIGNED && (
+                    <>
+                      <Badge variant="default">
+                        {match(recipient.role)
+                          .with(RecipientRole.APPROVER, () => (
+                            <>
+                              <CheckIcon className="mr-1 h-3 w-3" />
+                              <Trans>Approved</Trans>
+                            </>
+                          ))
+                          .with(RecipientRole.CC, () =>
+                            document.status === DocumentStatus.COMPLETED ? (
+                              <>
+                                <MailIcon className="mr-1 h-3 w-3" />
+                                <Trans>Sent</Trans>
+                              </>
+                            ) : (
+                              <>
+                                <CheckIcon className="mr-1 h-3 w-3" />
+                                <Trans>Ready</Trans>
+                              </>
+                            ),
+                          )
 
-              {document.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.NOT_SIGNED && (
-                  <Badge variant="secondary">
-                    <Clock className="mr-1 h-3 w-3" />
-                    <Trans>Pending</Trans>
-                  </Badge>
-                )}
-
-              {document.status !== DocumentStatus.DRAFT &&
-                recipient.signingStatus === SigningStatus.REJECTED && (
-                  <PopoverHover
-                    trigger={
-                      <Badge variant="destructive">
-                        <AlertTriangle className="mr-1 h-3 w-3" />
-                        <Trans>Rejected</Trans>
+                          .with(RecipientRole.SIGNER, () => (
+                            <>
+                              <SignatureIcon className="mr-1 h-3 w-3" />
+                              <Trans>Signed</Trans>
+                            </>
+                          ))
+                          .with(RecipientRole.VIEWER, () => (
+                            <>
+                              <MailOpenIcon className="mr-1 h-3 w-3" />
+                              <Trans>Viewed</Trans>
+                            </>
+                          ))
+                          .with(RecipientRole.ASSISTANT, () => (
+                            <>
+                              <UserIcon className="mr-1 h-3 w-3" />
+                              <Trans>Assisted</Trans>
+                            </>
+                          ))
+                          .exhaustive()}
                       </Badge>
-                    }
-                  >
-                    <p className="text-sm">
-                      <Trans>Reason for rejection: </Trans>
-                    </p>
 
-                    <p className="text-muted-foreground mt-1 text-sm">
-                      {recipient.rejectionReason}
-                    </p>
-                  </PopoverHover>
-                )}
+                      {voiceSignature && (
+                        <VoiceSignatureDisplay
+                          signatureId={voiceSignature.id.toString()}
+                          voiceSignatureUrl={voiceSignature.voiceSignatureUrl}
+                          voiceSignatureTranscript={voiceSignature.voiceSignatureTranscript}
+                        />
+                      )}
+                    </>
+                  )}
 
-              {document.status === DocumentStatus.PENDING &&
-                recipient.signingStatus === SigningStatus.NOT_SIGNED &&
-                recipient.role !== RecipientRole.CC && (
-                  <CopyTextButton
-                    value={formatSigningLink(recipient.token)}
-                    onCopySuccess={() => {
-                      toast({
-                        title: _(msg`Copied to clipboard`),
-                        description: _(msg`The signing link has been copied to your clipboard.`),
-                      });
-                    }}
-                  />
-                )}
-            </div>
-          </li>
-        ))}
+                {document.status !== DocumentStatus.DRAFT &&
+                  recipient.signingStatus === SigningStatus.NOT_SIGNED && (
+                    <Badge variant="secondary">
+                      <Clock className="mr-1 h-3 w-3" />
+                      <Trans>Pending</Trans>
+                    </Badge>
+                  )}
+
+                {document.status !== DocumentStatus.DRAFT &&
+                  recipient.signingStatus === SigningStatus.REJECTED && (
+                    <PopoverHover
+                      trigger={
+                        <Badge variant="destructive">
+                          <AlertTriangle className="mr-1 h-3 w-3" />
+                          <Trans>Rejected</Trans>
+                        </Badge>
+                      }
+                    >
+                      <p className="text-sm">
+                        <Trans>Reason for rejection: </Trans>
+                      </p>
+
+                      <p className="text-muted-foreground mt-1 text-sm">
+                        {recipient.rejectionReason}
+                      </p>
+                    </PopoverHover>
+                  )}
+
+                {document.status === DocumentStatus.PENDING &&
+                  recipient.signingStatus === SigningStatus.NOT_SIGNED &&
+                  recipient.role !== RecipientRole.CC && (
+                    <CopyTextButton
+                      value={formatSigningLink(recipient.token)}
+                      onCopySuccess={() => {
+                        toast({
+                          title: _(msg`Copied to clipboard`),
+                          description: _(msg`The signing link has been copied to your clipboard.`),
+                        });
+                      }}
+                    />
+                  )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
