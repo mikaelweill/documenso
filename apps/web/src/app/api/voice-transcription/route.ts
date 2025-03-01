@@ -63,11 +63,26 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const audioFile = formData.get('audio');
 
-    if (!audioFile || !(audioFile instanceof File)) {
+    if (!audioFile) {
       console.error('❌ No audio file provided');
       return NextResponse.json({ error: 'Bad request: No audio file provided' }, { status: 400 });
     }
 
+    // In Node.js, formData.get('audio') returns a Blob-like object
+    // Check if it's a string (which would be invalid) or a Blob-like object
+    if (typeof audioFile === 'string') {
+      console.error('❌ Received string instead of file');
+      return NextResponse.json({ error: 'Bad request: Invalid file format' }, { status: 400 });
+    }
+
+    // Now TypeScript knows audioFile is not a string
+    // We still need to check for the required properties
+    if (!('size' in audioFile) || !('type' in audioFile) || !('arrayBuffer' in audioFile)) {
+      console.error('❌ Invalid audio file format - missing required properties');
+      return NextResponse.json({ error: 'Bad request: Invalid file format' }, { status: 400 });
+    }
+
+    // At this point, we know audioFile has the properties we need
     console.log(`📊 Processing audio file: ${audioFile.size} bytes, type: ${audioFile.type}`);
 
     // Ensure we have a valid audio file type
@@ -119,16 +134,32 @@ export async function POST(request: NextRequest) {
 
       console.log(`📊 Using filename: ${fileName} with extension: ${fileExtension}`);
 
-      const transcriptionResponse = await Promise.race([
-        openai.audio.transcriptions.create({
-          file: new File([await audioFile.arrayBuffer()], fileName, { type: audioFile.type }),
-          model: 'whisper-1',
-          language: 'en',
-          response_format: 'text',
-        }),
-        timeout(TIMEOUT_MS),
-      ]);
+      // Convert the audio file to a buffer
+      const audioData = await audioFile.arrayBuffer();
+      const buffer = Buffer.from(audioData);
 
+      // Use the raw API directly with formData
+      const form = new FormData();
+      form.append('file', new Blob([buffer], { type: audioFile.type }), fileName);
+      form.append('model', 'whisper-1');
+      form.append('language', 'en');
+      form.append('response_format', 'text');
+
+      // Custom fetch to OpenAI API endpoint
+      const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: form,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+
+      if (!openAIResponse.ok) {
+        throw new Error(`OpenAI API error: ${openAIResponse.status} ${openAIResponse.statusText}`);
+      }
+
+      const transcriptionResponse = await openAIResponse.text();
       console.log(`✅ OpenAI API response successful`);
       console.log(
         `✅ Transcription result: "${transcriptionResponse.substring(0, 50)}${transcriptionResponse.length > 50 ? '...' : ''}"`,
