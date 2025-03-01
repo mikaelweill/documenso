@@ -109,6 +109,16 @@ export const ZDropdownFieldMeta = ZBaseFieldMeta.extend({
 
 export type TDropdownFieldMeta = z.infer<typeof ZDropdownFieldMeta>;
 
+export const ZVoiceSignatureFieldMeta = ZBaseFieldMeta.extend({
+  type: z.literal('voiceSignature'),
+  requiredPhrase: z.string().optional(),
+  strictMatching: z.boolean().optional(),
+  fontSize: z.number().min(8).max(96).optional(),
+  textAlign: ZFieldTextAlignSchema.optional(),
+});
+
+export type TVoiceSignatureFieldMeta = z.infer<typeof ZVoiceSignatureFieldMeta>;
+
 export const ZFieldMetaNotOptionalSchema = z.discriminatedUnion('type', [
   ZInitialsFieldMeta,
   ZNameFieldMeta,
@@ -119,6 +129,7 @@ export const ZFieldMetaNotOptionalSchema = z.discriminatedUnion('type', [
   ZRadioFieldMeta,
   ZCheckboxFieldMeta,
   ZDropdownFieldMeta,
+  ZVoiceSignatureFieldMeta,
 ]);
 
 export type TFieldMetaNotOptionalSchema = z.infer<typeof ZFieldMetaNotOptionalSchema>;
@@ -180,6 +191,10 @@ export const ZFieldAndMetaSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(FieldType.DROPDOWN),
     fieldMeta: ZDropdownFieldMeta.optional(),
+  }),
+  z.object({
+    type: z.literal(FieldType.VOICE_SIGNATURE),
+    fieldMeta: ZVoiceSignatureFieldMeta.optional(),
   }),
 ]);
 

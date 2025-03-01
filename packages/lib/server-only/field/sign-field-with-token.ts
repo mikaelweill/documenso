@@ -327,6 +327,18 @@ export const signFieldWithToken = async ({
         })(),
         savedTranscriptField: signature.voiceSignatureTranscript?.substring(0, 50),
         metadataLength: metadata?.length,
+        verificationStatus: (() => {
+          try {
+            if (!metadata) return 'No metadata';
+            const parsed = JSON.parse(metadata);
+            if (parsed?.requiredPhrase) {
+              return parsed?.isVerified === true ? 'Verified' : 'Failed';
+            }
+            return 'No verification required';
+          } catch (e) {
+            return 'Error parsing verification status';
+          }
+        })(),
       });
 
       // Dirty but I don't want to deal with type information

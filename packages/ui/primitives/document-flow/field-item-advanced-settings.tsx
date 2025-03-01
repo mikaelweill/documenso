@@ -19,9 +19,13 @@ import {
   type TNumberFieldMeta as NumberFieldMeta,
   type TRadioFieldMeta as RadioFieldMeta,
   type TTextFieldMeta as TextFieldMeta,
+  type TVoiceSignatureFieldMeta as VoiceSignatureFieldMeta,
   ZFieldMetaSchema,
 } from '@documenso/lib/types/field-meta';
 import { FieldType } from '@documenso/prisma/client';
+import { Checkbox } from '@documenso/ui/primitives/checkbox';
+import { Label } from '@documenso/ui/primitives/label';
+import { Textarea } from '@documenso/ui/primitives/textarea';
 import { useToast } from '@documenso/ui/primitives/use-toast';
 
 import type { FieldFormType } from './add-fields';
@@ -64,6 +68,110 @@ export type FieldMetaKeys =
   | keyof NameFieldMeta
   | keyof EmailFieldMeta
   | keyof DateFieldMeta;
+
+const VoiceSignatureFieldAdvancedSettings = ({
+  fieldMeta,
+  onChange,
+}: {
+  fieldMeta: FieldMeta;
+  onChange: (value: FieldMeta) => void;
+}) => {
+  const { _ } = useLingui();
+
+  // Initialize with default values for voice signature fields
+  const defaultValues: VoiceSignatureFieldMeta = {
+    type: 'voiceSignature',
+    fontSize: 14,
+    textAlign: 'left',
+    requiredPhrase: '',
+    strictMatching: false,
+  };
+
+  // Merge default values with any existing fieldMeta
+  const voiceFieldMeta = {
+    ...defaultValues,
+    ...(fieldMeta as VoiceSignatureFieldMeta),
+  };
+
+  // Direct controlled component state
+  const [requiredPhrase, setRequiredPhrase] = useState(voiceFieldMeta.requiredPhrase || '');
+  const [strictMatching, setStrictMatching] = useState(voiceFieldMeta.strictMatching || false);
+
+  // Update local state when fieldMeta changes from outside
+  useEffect(() => {
+    if (fieldMeta) {
+      const typedMeta = fieldMeta as VoiceSignatureFieldMeta;
+      if (typedMeta.requiredPhrase !== undefined && typedMeta.requiredPhrase !== requiredPhrase) {
+        setRequiredPhrase(typedMeta.requiredPhrase);
+      }
+      if (typedMeta.strictMatching !== undefined && typedMeta.strictMatching !== strictMatching) {
+        setStrictMatching(typedMeta.strictMatching);
+      }
+    }
+  }, [fieldMeta]);
+
+  // Update parent when our state changes
+  useEffect(() => {
+    console.log('Updating parent with:', { requiredPhrase, strictMatching });
+    const updatedMeta = {
+      ...voiceFieldMeta,
+      requiredPhrase: requiredPhrase,
+      strictMatching: strictMatching,
+    };
+
+    onChange(updatedMeta);
+  }, [requiredPhrase, strictMatching]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="voice-required-phrase">Required phrase</Label>
+
+          <Textarea
+            id="voice-required-phrase"
+            className="h-24 resize-none"
+            placeholder={_(msg`Example: I, [Name], agree to the terms in paragraph 3.`)}
+            value={requiredPhrase}
+            onChange={(e) => {
+              console.log(`Setting phrase to: ${e.target.value}`);
+              setRequiredPhrase(e.target.value);
+            }}
+          />
+
+          <p className="text-muted-foreground text-xs">
+            The signer will be asked to say this phrase. Leave empty if no specific phrase is
+            required.
+          </p>
+        </div>
+
+        <div className="flex items-start space-x-2">
+          <Checkbox
+            id="strict-matching"
+            checked={strictMatching}
+            disabled={!requiredPhrase}
+            onCheckedChange={(checked) => {
+              console.log(`Setting strict matching to: ${checked}`);
+              setStrictMatching(checked === true);
+            }}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <Label
+              htmlFor="strict-matching"
+              className={!requiredPhrase ? 'cursor-not-allowed opacity-50' : ''}
+            >
+              Enable strict phrase matching
+            </Label>
+            <p className="text-muted-foreground text-xs">
+              When enabled, the signer's voice must match the required phrase exactly. This provides
+              stronger verification but may increase failure rates.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const getDefaultState = (fieldType: FieldType): FieldMeta => {
   switch (fieldType) {
@@ -141,6 +249,14 @@ const getDefaultState = (fieldType: FieldType): FieldMeta => {
         required: false,
         readOnly: false,
       };
+    case FieldType.VOICE_SIGNATURE:
+      return {
+        type: 'voiceSignature',
+        requiredPhrase: '',
+        strictMatching: false,
+        fontSize: 14,
+        textAlign: 'left',
+      };
     default:
       throw new Error(`Unsupported field type: ${fieldType}`);
   }
@@ -207,6 +323,13 @@ export const FieldAdvancedSettings = forwardRef<HTMLDivElement, FieldAdvancedSet
       });
     };
 
+    const handleAdvancedSettingsChange = (updatedFieldMeta: FieldMeta) => {
+      setFieldState(updatedFieldMeta);
+      localStorage.setItem(localStorageKey, JSON.stringify(updatedFieldMeta));
+      onSave?.(updatedFieldMeta);
+      onAdvancedSettings?.();
+    };
+
     const handleOnGoNextClick = () => {
       try {
         if (errors.length > 0) {
@@ -229,7 +352,15 @@ export const FieldAdvancedSettings = forwardRef<HTMLDivElement, FieldAdvancedSet
     };
 
     return (
-      <div ref={ref} className="flex h-full flex-col">
+      <div
+        ref={ref}
+        className="flex h-full flex-col"
+        onClick={(e) => {
+          // We capture the click on the outer container to keep the dialog open
+          // but we don't stop propagation for child elements so inputs work correctly
+          e.stopPropagation();
+        }}
+      >
         <DocumentFlowFormContainerHeader title={title} description={description} />
         <DocumentFlowFormContainerContent>
           {isDocumentPdfLoaded &&
@@ -304,6 +435,17 @@ export const FieldAdvancedSettings = forwardRef<HTMLDivElement, FieldAdvancedSet
                 handleErrors={setErrors}
               />
             ))
+            .with(FieldType.VOICE_SIGNATURE, () => (
+              <VoiceSignatureFieldAdvancedSettings
+                fieldMeta={fieldState}
+                onChange={(updatedMeta) => {
+                  console.log('Voice signature field updated:', updatedMeta);
+                  setFieldState(updatedMeta);
+                  // Don't call handleAdvancedSettingsChange here to avoid closing the dialog
+                  // The changes will be saved when user clicks the Save button
+                }}
+              />
+            ))
             .otherwise(() => null)}
           {errors.length > 0 && (
             <div className="mt-4">
@@ -321,8 +463,14 @@ export const FieldAdvancedSettings = forwardRef<HTMLDivElement, FieldAdvancedSet
           <DocumentFlowFormContainerActions
             goNextLabel={msg`Save`}
             goBackLabel={msg`Cancel`}
-            onGoBackClick={onAdvancedSettings}
-            onGoNextClick={handleOnGoNextClick}
+            onGoBackClick={() => {
+              // Use a simple callback without parameters to match the expected type
+              onAdvancedSettings?.();
+            }}
+            onGoNextClick={() => {
+              // Use a simple callback without parameters to match the expected type
+              handleOnGoNextClick();
+            }}
             disableNextStep={errors.length > 0}
           />
         </DocumentFlowFormContainerFooter>

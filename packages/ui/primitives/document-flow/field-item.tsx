@@ -95,6 +95,7 @@ export const FieldItem = ({
     'EMAIL',
     'DATE',
     'NAME',
+    'VOICE_SIGNATURE',
   ].includes(field.type);
 
   const calculateCoords = useCallback(() => {
@@ -243,7 +244,11 @@ export const FieldItem = ({
         data-error={hasErrors ? 'true' : undefined}
         onClick={(e) => {
           e.stopPropagation();
-          setSettingsActive((prev) => !prev);
+
+          const newSettingsState = !settingsActive;
+          console.log('Field item clicked, settings active:', newSettingsState);
+          setSettingsActive(newSettingsState);
+
           onFieldActivate?.();
           onFocus?.();
         }}
@@ -286,8 +291,15 @@ export const FieldItem = ({
             {advancedField && (
               <button
                 className="dark:text-muted-foreground/50 dark:hover:text-muted-foreground dark:hover:bg-foreground/10 rounded-sm p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-gray-100"
-                onClick={onAdvancedSettings}
-                onTouchEnd={onAdvancedSettings}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Advanced settings button clicked');
+                  onAdvancedSettings?.();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  onAdvancedSettings?.();
+                }}
               >
                 <Settings2 className="h-3 w-3" />
               </button>
