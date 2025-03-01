@@ -541,16 +541,34 @@ export const VoiceSignatureField = ({
               </div>
             )}
 
-            {field.signature?.signatureImageAsBase64 && (
+            {field.signature?.voiceSignatureUrl && (
               <div>
                 <h3 className="mb-2 text-sm font-medium">
                   <Trans>Voice Recording</Trans>
                 </h3>
+                {/* Parse the voice signature URL to extract the base64 audio data */}
                 <audio
-                  src={`data:audio/webm;base64,${field.signature.signatureImageAsBase64}`}
+                  src={`data:audio/webm;base64,${
+                    field.signature.voiceSignatureUrl.split('::TRANSCRIPT::')[0]
+                  }`}
                   controls
                   className="w-full"
+                  preload="auto"
                 />
+              </div>
+            )}
+
+            {!field.signature?.voiceSignatureUrl && (
+              <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4">
+                <h3 className="mb-2 text-sm font-medium text-yellow-700">
+                  <Trans>Voice Recording</Trans>
+                </h3>
+                <p className="text-sm text-yellow-700">
+                  <Trans>
+                    The audio recording could not be found. This might happen if the field was
+                    created with an older version of the voice signature feature.
+                  </Trans>
+                </p>
               </div>
             )}
           </div>
