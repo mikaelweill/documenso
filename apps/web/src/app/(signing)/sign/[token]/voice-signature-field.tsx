@@ -65,6 +65,89 @@ export const VoiceSignatureField = ({
   const [isSaving, setIsSaving] = useState(false);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
 
+  const transcribeAudio = useCallback(async (audioBlob: Blob): Promise<string> => {
+    console.log('🔍 Parent: Starting transcription for audio blob', {
+      size: audioBlob.size,
+      type: audioBlob.type,
+    });
+    setIsTranscribing(true);
+
+    try {
+      // Create form data for the API request
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+
+      console.log('🔍 Parent: Sending audio to transcription API...');
+      const response = await fetch('/api/voice-transcription', {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('🔍 Parent: Transcription API response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Transcription failed: ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+
+      if (responseData.transcript) {
+        const transcript = responseData.transcript;
+        console.log(
+          '🔍 Parent: Transcription successful:',
+          transcript.substring(0, 50),
+          '(full length:',
+          transcript.length,
+          ')',
+        );
+
+        // Use a promise to ensure the state is updated before we return
+        await new Promise<void>((resolve) => {
+          // CRITICAL FIX: Immediately update voiceData state with the transcript
+          setVoiceData((currentVoiceData) => {
+            if (!currentVoiceData) {
+              console.warn('🔍 Cannot update transcript: voiceData is null');
+              return currentVoiceData;
+            }
+
+            console.log(
+              '🔍 Parent: Updating voiceData state with transcript:',
+              transcript.substring(0, 50),
+            );
+
+            // Create updated voice data with transcript
+            const updatedData = {
+              ...currentVoiceData,
+              transcript: transcript,
+            };
+
+            // Log the updated data
+            console.log('🔍 Updated voice data:', {
+              hasTranscript: !!updatedData.transcript,
+              transcriptLength: updatedData.transcript?.length || 0,
+            });
+
+            return updatedData;
+          });
+
+          // Small delay to allow React to process the state update
+          setTimeout(resolve, 100);
+        });
+
+        // State should be updated now, return the transcript
+        console.log('🔍 Parent: Returning transcript from API call function');
+        return transcript;
+      } else {
+        throw new Error('No transcript returned from API');
+      }
+    } catch (error) {
+      console.error('🔍 Parent: Transcription error:', error);
+      throw error;
+    } finally {
+      setIsTranscribing(false);
+    }
+  }, []);
+
   const { mutateAsync: signFieldWithToken, isPending: isSignFieldWithTokenLoading } =
     trpc.field.signFieldWithToken.useMutation(DO_NOT_INVALIDATE_QUERY_ON_MUTATION);
 
@@ -85,33 +168,28 @@ export const VoiceSignatureField = ({
       setIsSaving(true);
 
       // If transcription is still in progress, wait for it to complete
-      if (isTranscribing && voiceData.transcriptionPromise) {
+      if (isTranscribing) {
         console.log('🔍 Waiting for transcription to complete before saving...');
 
-        try {
-          // Wait for the transcription to complete
-          const transcript = await voiceData.transcriptionPromise;
+        // Use a timeout to wait for transcription to complete
+        await new Promise<void>((resolve) => {
+          const checkTranscription = () => {
+            if (!isTranscribing) {
+              resolve();
+            } else {
+              setTimeout(checkTranscription, 500);
+            }
+          };
 
-          // Update voiceData with the transcript - using a local variable to avoid race condition
-          const updatedVoiceData = { ...voiceData };
-          if (transcript) {
-            updatedVoiceData.transcript = transcript;
-            console.log('🔍 Transcription completed successfully:', transcript.substring(0, 50));
-          }
+          checkTranscription();
+        });
 
-          // Set the updated state safely
-          setVoiceData(updatedVoiceData);
-        } catch (transcriptionError) {
-          console.error('🔍 Error waiting for transcription:', transcriptionError);
-          // Continue with empty transcript if there was an error - preserve all other properties
-          if (voiceData) {
-            setVoiceData({
-              ...voiceData,
-              transcript: '',
-            });
-          }
-        }
+        console.log('🔍 Transcription completed, continuing with save...');
       }
+
+      // CRITICAL FIX: Get the most up-to-date transcript
+      // We need to get a fresh reference to the state since it might have been updated
+      console.log('🔍 Getting current voiceData state');
 
       // Debug logging
       console.log('🔍 Voice data before saving:', {
@@ -140,39 +218,99 @@ export const VoiceSignatureField = ({
 
       const base64 = await base64Promise;
 
-      // Log the transcript value to ensure it's available when saving
-      console.log('🔍 Final transcript before saving:', voiceData.transcript);
+      // Get the most up-to-date transcript value
+      // First try from the current state
+      let transcriptValue = voiceData.transcript || '';
 
-      // EMERGENCY FIX: Directly hardcode the transcript
-      // This is a temporary measure until we fix the state management
-      const emergencyTranscript = 'Hello, everyone.';
+      // If transcript is missing, try to get it from the API again
+      if (!transcriptValue && !isTranscribing) {
+        console.warn(
+          '⚠️ WARNING: Transcript is missing despite transcription completing successfully!',
+        );
 
-      console.log('🆘 EMERGENCY: Using hardcoded transcript:', emergencyTranscript);
+        // Emergency backup: Re-fetch the transcript if needed
+        try {
+          console.log('🔍 Attempting emergency transcript re-fetch');
+          const emergencyTranscript = await transcribeAudio(voiceData.audioBlob);
+          transcriptValue = emergencyTranscript;
+          console.log('🔍 Emergency transcript obtained:', transcriptValue?.substring(0, 50));
+        } catch (e) {
+          console.error('🔍 Emergency transcript fetch failed:', e);
+          // If all else fails, add a placeholder so we at least have something
+          transcriptValue = 'Audio recording (transcript unavailable)';
+        }
+      }
+
+      console.log('🔍 Final transcript value for saving:', transcriptValue?.substring(0, 50));
+
+      console.log('🔍 Using transcript:', {
+        hasTranscript: !!transcriptValue,
+        transcriptLength: transcriptValue.length,
+        transcriptPreview:
+          transcriptValue.substring(0, 50) + (transcriptValue.length > 50 ? '...' : ''),
+      });
 
       // Create metadata object with transcript
       const metadata = {
-        transcript: emergencyTranscript,
+        transcript: transcriptValue,
         duration: voiceData.duration,
-        emergency: true,
       };
 
       // Convert metadata to string for storage
-      const metadataValue = JSON.stringify(metadata);
+      let metadataString = JSON.stringify(metadata);
 
       // CRITICAL: Log full metadata to ensure it contains transcript
-      console.log('🔍 Full metadata being saved:', metadataValue);
+      console.log('🔍 Full metadata being saved:', metadataString);
 
       // Debug logging
       console.log('🔍 Metadata being saved:', {
-        metadataValue: metadataValue.substring(0, 50), // Log first 50 chars
-        metadataLength: metadataValue.length,
-        parsedBack: JSON.parse(metadataValue),
+        metadataValue: metadataString.substring(0, 50), // Log first 50 chars
+        metadataLength: metadataString.length,
+        parsedBack: JSON.parse(metadataString),
       });
 
-      // CRITICAL FIX: Send the transcript as a separate parameter to prevent metadata loss
-      // Instead of relying on metadata object, add the transcript directly to the value
+      // Added safety check for empty/invalid metadata
+      if (!metadataString || metadataString === '{}' || metadataString === 'null') {
+        console.error('⚠️ WARNING: Metadata is empty or invalid - creating fallback metadata');
+        const fallbackMetadata = JSON.stringify({
+          transcript: transcriptValue || 'Audio recording without transcript',
+          duration: voiceData.duration || 0,
+          isFailbackData: true,
+        });
+
+        console.log('🔍 Using fallback metadata:', fallbackMetadata);
+
+        // Use the fallback metadata
+        metadataString = fallbackMetadata;
+      }
+
+      // Extract transcript again to double-check
+      let finalTranscript: string | undefined;
+      try {
+        const parsedMetadata = JSON.parse(metadataString);
+        finalTranscript = parsedMetadata?.transcript;
+      } catch (e) {
+        console.error('🔍 Error parsing metadata before sending:', e);
+      }
+
+      // If after all our efforts we still don't have a transcript, add a fallback
+      if (!finalTranscript) {
+        console.warn('⚠️ Final transcript check failed - adding fallback transcript');
+        metadataString = JSON.stringify({
+          transcript: 'Audio recording (transcript unavailable)',
+          duration: voiceData.duration || 0,
+          isFinalFallback: true,
+        });
+      }
+
+      console.log('🔍 Final save parameters:', {
+        fieldId: field.id,
+        hasMetadata: !!metadataString,
+        metadataLength: metadataString.length,
+        isBase64: true,
+      });
+
       // Format: BASE64_AUDIO::TRANSCRIPT
-      const transcriptValue = emergencyTranscript;
       const valueWithTranscript = `${base64}::TRANSCRIPT::${encodeURIComponent(transcriptValue)}`;
 
       console.log('🔍 Using direct transcript in value:', {
@@ -181,63 +319,27 @@ export const VoiceSignatureField = ({
         valueLength: valueWithTranscript.length,
       });
 
-      // SAFETY: Double-check metadataValue contains transcript
-      if (!metadataValue.includes('"transcript"')) {
-        console.error('🔍 CRITICAL ERROR: transcript is missing from metadata!');
-
-        // Force recreate metadata as a fallback
-        const fixedMetadata = JSON.stringify({
-          transcript: emergencyTranscript,
-          duration: voiceData.duration,
-          fallback: true,
+      // Use the extracted transcript for saving
+      if (onSignField) {
+        await onSignField({
+          token,
+          fieldId: field.id,
+          value: valueWithTranscript,
+          isBase64: true,
+          metadata: metadataString,
+        });
+      } else {
+        await signFieldWithToken({
+          token,
+          fieldId: field.id,
+          value: valueWithTranscript,
+          isBase64: true,
+          metadata: metadataString,
         });
 
-        console.log('🔍 Using fallback metadata instead:', fixedMetadata);
-
-        if (onSignField) {
-          await onSignField({
-            token,
-            fieldId: field.id,
-            value: valueWithTranscript,
-            isBase64: true,
-            metadata: fixedMetadata, // Use fixed metadata
-          });
-        } else {
-          await signFieldWithToken({
-            token,
-            fieldId: field.id,
-            value: valueWithTranscript,
-            isBase64: true,
-            metadata: fixedMetadata, // Use fixed metadata
-          });
-
-          startTransition(() => {
-            router.refresh();
-          });
-        }
-      } else {
-        // Normal flow when metadata contains transcript
-        if (onSignField) {
-          await onSignField({
-            token,
-            fieldId: field.id,
-            value: valueWithTranscript,
-            isBase64: true,
-            metadata: metadataValue, // Add metadata with transcript
-          });
-        } else {
-          await signFieldWithToken({
-            token,
-            fieldId: field.id,
-            value: valueWithTranscript,
-            isBase64: true,
-            metadata: metadataValue, // Add metadata with transcript
-          });
-
-          startTransition(() => {
-            router.refresh();
-          });
-        }
+        startTransition(() => {
+          router.refresh();
+        });
       }
 
       setIsDialogOpen(false);
@@ -272,6 +374,7 @@ export const VoiceSignatureField = ({
     token,
     voiceData,
     isTranscribing,
+    transcribeAudio,
   ]);
 
   const handleRemoveSignature = useCallback(async () => {
@@ -381,6 +484,8 @@ export const VoiceSignatureField = ({
               onValidityChange={setIsValid}
               onTranscriptionStatusChange={setIsTranscribing}
               containerClassName="w-full"
+              transcribeAudioFn={transcribeAudio}
+              transcript={voiceData?.transcript || null}
             />
           </div>
 

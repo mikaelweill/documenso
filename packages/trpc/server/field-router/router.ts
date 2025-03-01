@@ -447,13 +447,20 @@ export const fieldRouter = router({
   signFieldWithToken: procedure
     .input(ZSignFieldWithTokenMutationSchema)
     .mutation(async ({ input, ctx }) => {
-      const { token, fieldId, value, isBase64, authOptions } = input;
+      const { token, fieldId, value, isBase64, authOptions, metadata } = input;
+
+      console.log('🔍 tRPC: Received signFieldWithToken request with metadata:', {
+        hasMetadata: !!metadata,
+        metadataLength: metadata?.length,
+        metadataPreview: metadata?.substring(0, 50),
+      });
 
       return await signFieldWithToken({
         token,
         fieldId,
         value,
         isBase64,
+        metadata,
         userId: ctx.user?.id,
         authOptions,
         requestMetadata: extractNextApiRequestMetadata(ctx.req),

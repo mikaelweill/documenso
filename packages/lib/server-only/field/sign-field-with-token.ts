@@ -253,6 +253,29 @@ export const signFieldWithToken = async ({
     }
 
     if (isVoiceSignatureField) {
+      // Debug logging before trying to use metadata
+      console.log('🔍 Server (pre-upsert): Voice signature metadata check:', {
+        hasMetadata: !!metadata,
+        metadataType: typeof metadata,
+        metadataLength: metadata?.length,
+        rawMetadata: metadata?.substring(0, 100), // Log first 100 chars
+        isBase64: isBase64,
+        valueLength: voiceSignatureData ? voiceSignatureData.length : 0,
+      });
+
+      try {
+        // Try to parse the metadata to ensure it's valid JSON
+        const parsedMetadata = metadata ? JSON.parse(metadata) : null;
+        console.log('🔍 Server: Successfully parsed metadata:', {
+          hasTranscript: !!parsedMetadata?.transcript,
+          transcriptLength: parsedMetadata?.transcript?.length,
+          transcriptPreview: parsedMetadata?.transcript?.substring(0, 50),
+          duration: parsedMetadata?.duration,
+        });
+      } catch (error) {
+        console.error('🔍 Server: Failed to parse metadata:', error, 'Raw metadata:', metadata);
+      }
+
       const signature = await tx.signature.upsert({
         where: {
           fieldId: field.id,
@@ -263,13 +286,31 @@ export const signFieldWithToken = async ({
           voiceSignatureUrl: voiceSignatureData,
           voiceSignatureCreatedAt: new Date(),
           voiceSignatureMetadata: metadata,
-          voiceSignatureTranscript: metadata ? JSON.parse(metadata)?.transcript : undefined,
+          voiceSignatureTranscript: (() => {
+            try {
+              if (!metadata) return undefined;
+              const parsed = JSON.parse(metadata);
+              return parsed?.transcript || undefined;
+            } catch (e) {
+              console.error('🔍 Server: Error parsing metadata for transcript:', e);
+              return undefined;
+            }
+          })(),
         },
         update: {
           voiceSignatureUrl: voiceSignatureData,
           voiceSignatureCreatedAt: new Date(),
           voiceSignatureMetadata: metadata,
-          voiceSignatureTranscript: metadata ? JSON.parse(metadata)?.transcript : undefined,
+          voiceSignatureTranscript: (() => {
+            try {
+              if (!metadata) return undefined;
+              const parsed = JSON.parse(metadata);
+              return parsed?.transcript || undefined;
+            } catch (e) {
+              console.error('🔍 Server: Error parsing metadata for transcript:', e);
+              return undefined;
+            }
+          })(),
         },
       });
 
@@ -277,9 +318,13 @@ export const signFieldWithToken = async ({
       console.log('🔍 Server: Voice signature saved to database:', {
         fieldId: field.id,
         hasMetadata: !!metadata,
-        extractedTranscript: metadata
-          ? JSON.parse(metadata)?.transcript?.substring(0, 50)
-          : undefined,
+        extractedTranscript: (() => {
+          try {
+            return metadata ? JSON.parse(metadata)?.transcript?.substring(0, 50) : undefined;
+          } catch (e) {
+            return 'Error parsing transcript';
+          }
+        })(),
         savedTranscriptField: signature.voiceSignatureTranscript?.substring(0, 50),
         metadataLength: metadata?.length,
       });

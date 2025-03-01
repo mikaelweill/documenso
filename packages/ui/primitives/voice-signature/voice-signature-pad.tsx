@@ -14,6 +14,7 @@ export type VoiceSignatureDataFormat = {
   audioBlob: Blob;
   duration: number;
   transcript?: string;
+  transcriptionPromise?: Promise<string>;
 };
 
 export interface VoiceSignaturePadProps {
@@ -22,6 +23,10 @@ export interface VoiceSignaturePadProps {
   containerClassName?: string;
   onChange?: (data: VoiceSignatureDataFormat | null) => void;
   onValidityChange?: (valid: boolean) => void;
+  onTranscriptionStatusChange?: (isTranscribing: boolean) => void;
+  transcribeAudioFn?: (audioBlob: Blob) => Promise<string>;
+  transcript?: string | null;
+  transcriptionError?: string | null;
 }
 
 export const VoiceSignaturePad = ({
@@ -30,6 +35,10 @@ export const VoiceSignaturePad = ({
   containerClassName,
   onChange,
   onValidityChange,
+  onTranscriptionStatusChange,
+  transcribeAudioFn,
+  transcript: parentTranscript = null,
+  transcriptionError: parentTranscriptionError = null,
 }: VoiceSignaturePadProps) => {
   const { _ } = useLingui();
 
@@ -42,17 +51,13 @@ export const VoiceSignaturePad = ({
   const [playbackPosition, setPlaybackPosition] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
 
-  // New states for transcription
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcript, setTranscript] = useState<string | null>(null);
-  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartRef = useRef<number>(0);
   const playbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup function for timers and media resources
   const cleanup = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -81,7 +86,6 @@ export const VoiceSignaturePad = ({
     };
   }, [cleanup]);
 
-  // Update timer regularly while recording
   useEffect(() => {
     if (isRecording && timerStartRef.current > 0) {
       const timerInterval = setInterval(() => {
@@ -95,13 +99,10 @@ export const VoiceSignaturePad = ({
     }
   }, [isRecording]);
 
-  // Update playback timer when playing
   useEffect(() => {
     if (isPlaying && audioRef.current) {
-      // Force playback position to 0 at start
       setPlaybackPosition(0);
 
-      // Update playback position every 100ms
       const playbackInterval = setInterval(() => {
         if (audioRef.current) {
           const position = Math.floor(audioRef.current.currentTime);
@@ -120,105 +121,33 @@ export const VoiceSignaturePad = ({
     }
   }, [isPlaying]);
 
-  // Update validity when audio data changes
   useEffect(() => {
     if (onValidityChange) {
-      // Audio is valid if it exists and is longer than 1 second
       onValidityChange(!!audioData && audioData.duration > 1);
     }
   }, [audioData, onValidityChange]);
 
-  // New function to transcribe audio using the Whisper API
-  const transcribeAudio = async (blob: Blob) => {
-    console.log('🎙️ Starting transcription for audio blob', { size: blob.size, type: blob.type });
+  const handleTranscribeAudio = (blob: Blob) => {
+    console.log('🎙️ Child: Starting background transcription');
     setIsTranscribing(true);
-    setTranscriptionError(null);
+    onTranscriptionStatusChange?.(true);
 
-    try {
-      // Create form data for the API request
-      const formData = new FormData();
-
-      // Convert blob to a format more likely to be accepted by OpenAI
-      // OpenAI supports: 'flac', 'm4a', 'mp3', 'mp4', 'mpeg', 'mpga', 'oga', 'ogg', 'wav', 'webm'
-
-      // Extract format from blob type (audio/webm -> webm)
-      const originalFormat = blob.type.split('/')[1]?.split(';')[0] || '';
-      console.log(`🎙️ Original audio format: ${originalFormat}`);
-
-      // Add file to form data
-      formData.append('audio', blob);
-
-      console.log('🎙️ Sending audio to transcription API...');
-      // Send audio to our transcription API
-      const response = await fetch('/api/voice-transcription', {
-        method: 'POST',
-        body: formData,
-      });
-
-      console.log('🎙️ Transcription API response status:', response.status);
-
-      if (!response.ok) {
-        let errorMessage = `Transcription failed: ${response.statusText}`;
-
-        try {
-          const errorData = await response.json();
-          console.error('🎙️ Transcription API error:', errorData);
-          errorMessage = `${errorMessage}${errorData?.error ? ` - ${errorData.error}` : ''}`;
-        } catch (jsonError) {
-          console.error('🎙️ Failed to parse error response as JSON:', jsonError);
-          // Try to get text content as fallback
-          const textContent = await response.text().catch(() => null);
-          if (textContent) {
-            errorMessage = `${errorMessage} - Raw response: ${textContent.substring(0, 100)}`;
-          }
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      console.log('🎙️ Processing transcription response...');
-      let responseData;
-      try {
-        responseData = await response.json();
-      } catch (jsonError) {
-        console.error('🎙️ Failed to parse success response as JSON:', jsonError);
-        // Try to get text content as fallback
-        const textContent = await response.text().catch(() => null);
-        throw new Error(
-          `Failed to parse transcription response as JSON. Raw response: ${textContent?.substring(0, 100) || 'empty'}`,
-        );
-      }
-
-      if (responseData.transcript) {
-        console.log(
-          '🎙️ Transcription successful:',
-          responseData.transcript.substring(0, 50) + '...',
-        );
-        setTranscript(responseData.transcript);
-
-        // Update the audio data with the transcript
-        if (audioData) {
-          const updatedAudioData = {
-            ...audioData,
-            transcript: responseData.transcript,
-          };
-
-          setAudioData(updatedAudioData);
-          onChange?.(updatedAudioData);
-        }
-      } else {
-        console.error('🎙️ No transcript in response data:', responseData);
-        throw new Error('No transcript returned from API');
-      }
-    } catch (error) {
-      console.error('🎙️ Transcription error:', error);
-      setTranscriptionError(
-        _(
-          msg`Failed to transcribe audio. Please try again. (${error instanceof Error ? error.message : 'Unknown error'})`,
-        ),
-      );
-    } finally {
+    if (transcribeAudioFn) {
+      transcribeAudioFn(blob)
+        .then(() => {
+          console.log('🎙️ Child: Transcription completed via parent function');
+          setIsTranscribing(false);
+          onTranscriptionStatusChange?.(false);
+        })
+        .catch((err: unknown) => {
+          console.error('🎙️ Child: Transcription error via parent function:', err);
+          setIsTranscribing(false);
+          onTranscriptionStatusChange?.(false);
+        });
+    } else {
+      console.warn('🎙️ No parent transcription function provided');
       setIsTranscribing(false);
+      onTranscriptionStatusChange?.(false);
     }
   };
 
@@ -226,16 +155,11 @@ export const VoiceSignaturePad = ({
     try {
       setRecordingError(null);
       setRecordingDuration(0);
-      setTranscript(null);
-      setTranscriptionError(null);
 
-      // Request microphone access
       console.log('🎙️ Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setAudioStream(stream);
 
-      // Create media recorder with a format compatible with OpenAI Whisper
-      // Try to use mp3 format if supported, otherwise fall back to webm
       const mimeType = MediaRecorder.isTypeSupported('audio/mp3')
         ? 'audio/mp3'
         : MediaRecorder.isTypeSupported('audio/wav')
@@ -262,12 +186,9 @@ export const VoiceSignaturePad = ({
 
       mediaRecorder.addEventListener('stop', () => {
         console.log('🎙️ Recording stopped');
-        // Calculate actual duration based on recording time
         const actualDuration = Math.floor((Date.now() - timerStartRef.current) / 1000);
-        // Ensure we have at least 1 second minimum for valid display
         const safeDuration = Math.max(1, actualDuration);
 
-        // Create blob with the same MIME type that was used to record
         const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
 
         console.log('🎙️ Audio recording complete:', {
@@ -276,20 +197,19 @@ export const VoiceSignaturePad = ({
           duration: safeDuration,
         });
 
-        // Set reliable duration immediately
-        const safeAudioData = { audioBlob, duration: safeDuration };
+        const safeAudioData: VoiceSignatureDataFormat = {
+          audioBlob,
+          duration: safeDuration,
+        };
         setAudioData(safeAudioData);
         onChange?.(safeAudioData);
 
-        // Clean up resources
         setIsRecording(false);
         timerStartRef.current = 0;
 
-        // Start transcription in the background without Promise-related errors
         handleTranscribeAudio(audioBlob);
       });
 
-      // Start recording
       console.log('🎙️ Starting media recorder');
       mediaRecorder.start();
     } catch (error) {
@@ -298,25 +218,6 @@ export const VoiceSignaturePad = ({
         _(msg`Microphone access denied. Please grant permission to use the microphone.`),
       );
     }
-  };
-
-  // Helper function to handle transcription without async/await in event handlers
-  const handleTranscribeAudio = (blob: Blob) => {
-    console.log('🎙️ Starting background transcription');
-    setIsTranscribing(true);
-
-    transcribeAudio(blob)
-      .then(() => {
-        console.log('🎙️ Background transcription completed successfully');
-      })
-      .catch((err: unknown) => {
-        console.error('🎙️ Transcription background process error:', err);
-        setTranscriptionError(
-          _(
-            msg`Transcription failed in the background. You can still save your recording, but without a transcript.`,
-          ),
-        );
-      });
   };
 
   const stopRecording = () => {
@@ -337,7 +238,6 @@ export const VoiceSignaturePad = ({
   const playAudio = () => {
     if (!audioData || !audioRef.current) return;
 
-    // Reset playback position to 0
     setPlaybackPosition(0);
 
     const audio = audioRef.current;
@@ -345,7 +245,6 @@ export const VoiceSignaturePad = ({
 
     audio.src = url;
 
-    // No need to set duration - we're using a fixed value in the display
     void audio.play();
     setIsPlaying(true);
 
@@ -374,17 +273,14 @@ export const VoiceSignaturePad = ({
   };
 
   const formatTime = (seconds: number) => {
-    // Special case for playback position - 0 is valid
     if (seconds === 0) {
       return '0:00';
     }
 
-    // Handle invalid cases - NaN, Infinity, negative numbers, etc.
     if (!seconds || !Number.isFinite(seconds) || seconds < 0) {
-      return '0:04'; // Default fallback time
+      return '0:04';
     }
 
-    // Cap at a reasonable maximum to prevent weird values
     const secs = Math.min(600, Math.floor(seconds));
     const mins = Math.floor(secs / 60);
     const remainingSecs = secs % 60;
@@ -441,7 +337,6 @@ export const VoiceSignaturePad = ({
                     onClick={() => {
                       setAudioData(null);
                       setPlaybackPosition(0);
-                      setTranscript(null);
                       onChange?.(null);
                     }}
                     disabled={disabled}
@@ -477,7 +372,6 @@ export const VoiceSignaturePad = ({
             </div>
           </div>
 
-          {/* Transcription UI */}
           {isTranscribing && (
             <div className="bg-muted mt-4 rounded-md px-4 py-2">
               <p className="animate-pulse text-sm font-medium">
@@ -486,19 +380,19 @@ export const VoiceSignaturePad = ({
             </div>
           )}
 
-          {transcriptionError && (
+          {parentTranscriptionError && (
             <div className="bg-destructive/10 mt-4 flex items-start gap-2 rounded-md px-4 py-2">
               <AlertCircle className="text-destructive mt-0.5 h-4 w-4 flex-shrink-0" />
-              <p className="text-destructive text-sm">{transcriptionError}</p>
+              <p className="text-destructive text-sm">{parentTranscriptionError}</p>
             </div>
           )}
 
-          {transcript && (
+          {parentTranscript && (
             <div className="bg-accent/20 mt-4 rounded-md px-4 py-3">
               <p className="text-accent-foreground/70 mb-1 text-xs font-semibold uppercase">
                 <Trans>Transcript</Trans>
               </p>
-              <p className="text-sm">{transcript}</p>
+              <p className="text-sm">{parentTranscript}</p>
             </div>
           )}
         </CardContent>
