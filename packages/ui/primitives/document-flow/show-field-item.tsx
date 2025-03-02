@@ -31,8 +31,11 @@ export const ShowFieldItem = ({ field, recipients }: ShowFieldItemProps) => {
 
   const coords = useFieldPageCoords(field);
 
-  const signerEmail =
+  const _signerEmail =
     recipients.find((recipient) => recipient.id === field.recipientId)?.email ?? '';
+
+  const isSignatureField =
+    field.type === FieldType.SIGNATURE || field.type === FieldType.VOICE_SIGNATURE;
 
   return createPortal(
     <div
@@ -48,13 +51,20 @@ export const ShowFieldItem = ({ field, recipients }: ShowFieldItemProps) => {
         <CardContent
           className={cn(
             'text-muted-foreground/50 flex h-full w-full flex-col items-center justify-center p-0 text-[clamp(0.575rem,1.8cqw,1.2rem)] leading-none',
-            field.type === FieldType.SIGNATURE && fontCaveat.className,
+            isSignatureField && fontCaveat.className,
           )}
         >
-          {parseMessageDescriptor(_, FRIENDLY_FIELD_TYPE[field.type])}
+          {field.type === FieldType.VOICE_SIGNATURE ? (
+            <div className="flex items-center gap-1">
+              <span className="text-xs">🎤</span>
+              <span>{parseMessageDescriptor(_, FRIENDLY_FIELD_TYPE[field.type])}</span>
+            </div>
+          ) : (
+            parseMessageDescriptor(_, FRIENDLY_FIELD_TYPE[field.type])
+          )}
 
           {/* <p className="text-muted-foreground/50 w-full truncate text-center text-xs">
-            {signerEmail}
+            {_signerEmail}
           </p> */}
         </CardContent>
       </Card>
