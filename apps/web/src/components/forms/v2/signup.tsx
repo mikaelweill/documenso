@@ -642,6 +642,77 @@ export const SignUpFormV2 = ({
     }
   };
 
+  // Record video and handle recording start/stop
+  const setupMediaRecorder = (mediaStreamToUse: MediaStream): MediaRecorder | null => {
+    try {
+      // Reset recording chunks
+      recordingChunks.current = [];
+
+      // Set up the media recorder instance
+      const recorder = new MediaRecorder(mediaStreamToUse);
+
+      // Handle data available event
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunks.current.push(event.data);
+        }
+      };
+
+      // Handle stop event
+      recorder.onstop = () => {
+        // Create a blob from all chunks
+        if (recordingChunks.current.length > 0) {
+          const blob = new Blob(recordingChunks.current, { type: 'video/webm' });
+          setVideoBlob(blob);
+
+          // Create a URL for the blob for preview
+          const videoElement = document.getElementById('enrollment-video-preview');
+          if (videoElement instanceof HTMLVideoElement) {
+            videoElement.src = URL.createObjectURL(blob);
+            videoElement.srcObject = null;
+            videoElement.controls = true;
+            videoElement.loop = false;
+            videoElement.muted = false;
+
+            // Add event listener for when playback ends
+            videoElement.onended = () => {
+              console.log('Recording playback ended');
+              // Reset to beginning so it's ready for replay
+              videoElement.currentTime = 0;
+            };
+
+            // Let user know they can replay the recording
+            toast({
+              title: 'Recording saved',
+              description: 'You can now review your recording before accepting.',
+            });
+          }
+
+          console.log('Recording saved, duration:', recordingDuration);
+        }
+
+        // Ensure recording state is updated
+        setIsRecording(false);
+      };
+
+      // Handle recording errors
+      recorder.onerror = (event) => {
+        console.error('Recording error:', event);
+        toast({
+          title: 'Recording error',
+          description: 'An error occurred during recording',
+          variant: 'destructive',
+        });
+        setIsRecording(false);
+      };
+
+      return recorder;
+    } catch (error) {
+      console.error('Error setting up media recorder:', error);
+      return null;
+    }
+  };
+
   // Handle recording button click in the VOICE_ENROLLMENT step
   const handleRecordingClick = async () => {
     if (isRecording) {
@@ -734,8 +805,6 @@ export const SignUpFormV2 = ({
     voiceEnrollmentDuration,
   }: TSignUpFormV2Schema) => {
     try {
-      analytics.capture('App: User Sign Up', { email });
-
       await signup({
         name,
         email,
@@ -746,9 +815,13 @@ export const SignUpFormV2 = ({
         voiceEnrollmentDuration,
       });
 
-      setForm({
-        ...form,
-        step: 'CLAIM_USERNAME',
+      // Use analytics.capture instead of track
+      analytics.capture('App: User Sign Up', { email });
+
+      await signIn('credentials', {
+        email,
+        password,
+        callbackUrl: '/',
       });
     } catch (error) {
       console.error('Error in sign up:', error);
@@ -1011,6 +1084,34 @@ export const SignUpFormV2 = ({
       }
     };
   }, [isRecording, isAudioOnlyMode, mediaRecorder, recordingStream]);
+
+  // Set up timer to track recording duration
+  useEffect(() => {
+    let interval: NodeJS.Timeout | undefined;
+
+    if (isRecording) {
+      // Reset timer when starting recording
+      setRecordingDuration(0);
+      const startTime = Date.now();
+      setRecordingStartTime(startTime);
+
+      // Set up interval to update duration every second
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        setRecordingDuration(elapsed);
+        console.log('Recording duration:', elapsed, 'seconds');
+      }, 1000);
+    } else if (interval) {
+      clearInterval(interval);
+    }
+
+    // Clean up interval on unmount or when recording stops
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isRecording]);
 
   return (
     <div className={cn('flex justify-center gap-x-12', className)}>
