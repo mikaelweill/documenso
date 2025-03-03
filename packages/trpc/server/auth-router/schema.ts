@@ -39,6 +39,8 @@ export const ZSignUpMutationSchema = z.object({
       message: 'Username can only container alphanumeric characters and dashes.',
     })
     .optional(),
+  voiceEnrollmentVideoUrl: z.string().optional(),
+  voiceEnrollmentDuration: z.number().optional(),
 });
 
 export const ZCreatePasskeyMutationSchema = z.object({

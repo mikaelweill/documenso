@@ -76,7 +76,7 @@ msgstr "{0, plural, one {1 matching field} other {# matching fields}}"
 msgid "{0, plural, one {1 Recipient} other {# Recipients}}"
 msgstr "{0, plural, one {1 Recipient} other {# Recipients}}"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:239
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:243
 msgid "{0, plural, one {Waiting on 1 recipient} other {Waiting on # recipients}}"
 msgstr "{0, plural, one {Waiting on 1 recipient} other {Waiting on # recipients}}"
 
@@ -85,6 +85,8 @@ msgid "{0, plural, zero {Select values} other {# selected...}}"
 msgstr "{0, plural, zero {Select values} other {# selected...}}"
 
 #: apps/web/src/app/(signing)/sign/[token]/auto-sign.tsx:193
+#: apps/web/src/components/forms/v2/signup.tsx:1372
+#: apps/web/src/components/forms/v2/signup.tsx:1389
 msgid "{0}"
 msgstr "{0}"
 
@@ -121,7 +123,7 @@ msgstr "{0} of {1} row(s) selected."
 msgid "{0} on behalf of \"{1}\" has invited you to {recipientActionVerb} the document \"{2}\"."
 msgstr "{0} on behalf of \"{1}\" has invited you to {recipientActionVerb} the document \"{2}\"."
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:174
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:178
 msgid "{0} Recipient(s)"
 msgstr "{0} Recipient(s)"
 
@@ -569,6 +571,7 @@ msgid "A verification email will be sent to the provided email."
 msgstr "A verification email will be sent to the provided email."
 
 #: apps/web/src/app/(dashboard)/settings/teams/accept-team-invitation-button.tsx:46
+#: apps/web/src/components/forms/v2/signup.tsx:1415
 #: packages/email/templates/confirm-team-email.tsx:118
 #: packages/email/templates/team-invite.tsx:94
 #: packages/email/templates/team-transfer-request.tsx:81
@@ -783,7 +786,7 @@ msgstr "Admin panel"
 msgid "Advanced Options"
 msgstr "Advanced Options"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:593
+#: packages/ui/primitives/document-flow/add-fields.tsx:594
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:506
 msgid "Advanced settings"
 msgstr "Advanced settings"
@@ -844,7 +847,7 @@ msgstr "Allow document recipients to reply directly to this email address"
 msgid "Allows authenticating using biometrics, password managers, hardware keys, etc."
 msgstr "Allows authenticating using biometrics, password managers, hardware keys, etc."
 
-#: apps/web/src/components/forms/v2/signup.tsx:427
+#: apps/web/src/components/forms/v2/signup.tsx:1294
 msgid "Already have an account? <0>Sign in instead</0>"
 msgstr "Already have an account? <0>Sign in instead</0>"
 
@@ -878,7 +881,7 @@ msgstr "An email requesting the transfer of this team has been sent."
 #: apps/web/src/components/forms/reset-password.tsx:95
 #: apps/web/src/components/forms/signup.tsx:112
 #: apps/web/src/components/forms/token.tsx:146
-#: apps/web/src/components/forms/v2/signup.tsx:166
+#: apps/web/src/components/forms/v2/signup.tsx:822
 msgid "An error occurred"
 msgstr "An error occurred"
 
@@ -942,7 +945,7 @@ msgstr "An error occurred while enabling the user."
 msgid "An error occurred while loading team members. Please try again later."
 msgstr "An error occurred while loading team members. Please try again later."
 
-#: packages/ui/primitives/pdf-viewer.tsx:167
+#: packages/ui/primitives/pdf-viewer.tsx:182
 msgid "An error occurred while loading the document."
 msgstr "An error occurred while loading the document."
 
@@ -1027,11 +1030,15 @@ msgstr "An error occurred while updating your profile."
 msgid "An error occurred while uploading your document."
 msgstr "An error occurred while uploading your document."
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:194
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:613
+msgid "An exact match is required."
+msgstr "An exact match is required."
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:526
 msgid "An unexpected error occurred while removing the signature. Please try again."
 msgstr "An unexpected error occurred while removing the signature. Please try again."
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:156
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:472
 msgid "An unexpected error occurred while signing the field. Please try again."
 msgstr "An unexpected error occurred while signing the field. Please try again."
 
@@ -1063,8 +1070,8 @@ msgstr "An unexpected error occurred while signing the field. Please try again."
 #: apps/web/src/components/forms/signin.tsx:302
 #: apps/web/src/components/forms/signup.tsx:124
 #: apps/web/src/components/forms/signup.tsx:138
-#: apps/web/src/components/forms/v2/signup.tsx:187
-#: apps/web/src/components/forms/v2/signup.tsx:201
+#: apps/web/src/components/forms/v2/signup.tsx:861
+#: apps/web/src/components/forms/v2/signup.tsx:877
 #: apps/web/src/components/templates/manage-public-template-dialog.tsx:140
 #: apps/web/src/components/templates/manage-public-template-dialog.tsx:176
 msgid "An unknown error occurred"
@@ -1109,7 +1116,7 @@ msgstr "Approve"
 msgid "Approve Document"
 msgstr "Approve Document"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:95
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:110
 #: packages/lib/constants/recipient-roles.ts:9
 msgid "Approved"
 msgstr "Approved"
@@ -1181,7 +1188,7 @@ msgstr "Assistant role is only available when the document is in sequential sign
 msgid "Assistants"
 msgstr "Assistants"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:127
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:142
 #: packages/lib/constants/recipient-roles.ts:37
 msgid "Assisted"
 msgstr "Assisted"
@@ -1221,7 +1228,7 @@ msgstr "Awaiting email confirmation"
 
 #: apps/web/src/app/(recipient)/d/[token]/sign-direct-template.tsx:371
 #: apps/web/src/components/(dashboard)/settings/layout/activity-back.tsx:20
-#: apps/web/src/components/forms/v2/signup.tsx:513
+#: apps/web/src/components/forms/v2/signup.tsx:1560
 msgid "Back"
 msgstr "Back"
 
@@ -1246,7 +1253,7 @@ msgstr "Backup codes"
 msgid "Banner Updated"
 msgstr "Banner Updated"
 
-#: apps/web/src/components/forms/v2/signup.tsx:476
+#: apps/web/src/components/forms/v2/signup.tsx:1512
 msgid "Basic details"
 msgstr "Basic details"
 
@@ -1370,7 +1377,7 @@ msgstr "Can prepare"
 #: apps/web/src/app/(signing)/sign/[token]/sign-dialog.tsx:131
 #: apps/web/src/app/(signing)/sign/[token]/signature-field.tsx:318
 #: apps/web/src/app/(signing)/sign/[token]/text-field.tsx:358
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:272
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:693
 #: apps/web/src/app/(teams)/t/[teamUrl]/settings/team-transfer-status.tsx:121
 #: apps/web/src/components/(dashboard)/settings/token/delete-token-dialog.tsx:176
 #: apps/web/src/components/(dashboard)/settings/webhooks/create-webhook-dialog.tsx:242
@@ -1390,7 +1397,7 @@ msgstr "Can prepare"
 #: apps/web/src/components/forms/2fa/view-recovery-codes-dialog.tsx:163
 #: apps/web/src/components/templates/manage-public-template-dialog.tsx:448
 #: apps/web/src/components/templates/template-bulk-send-dialog.tsx:263
-#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:323
+#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:465
 #: packages/ui/primitives/document-flow/send-document-action-dialog.tsx:58
 msgid "Cancel"
 msgstr "Cancel"
@@ -1440,6 +1447,10 @@ msgstr "Checkbox values"
 msgid "Checkout"
 msgstr "Checkout"
 
+#: apps/web/src/components/forms/v2/signup.tsx:1157
+msgid "Choose a username for your public profile."
+msgstr "Choose a username for your public profile."
+
 #: apps/web/src/app/(dashboard)/templates/template-direct-link-dialog.tsx:270
 msgid "Choose an existing recipient from below to continue"
 msgstr "Choose an existing recipient from below to continue"
@@ -1460,7 +1471,7 @@ msgstr "Choose..."
 msgid "Claim account"
 msgstr "Claim account"
 
-#: apps/web/src/components/forms/v2/signup.tsx:485
+#: apps/web/src/components/forms/v2/signup.tsx:1530
 msgid "Claim username"
 msgstr "Claim username"
 
@@ -1468,11 +1479,11 @@ msgstr "Claim username"
 msgid "Claim your profile later"
 msgstr "Claim your profile later"
 
-#: apps/web/src/components/forms/v2/signup.tsx:283
+#: apps/web/src/components/forms/v2/signup.tsx:1153
 msgid "Claim your username now"
 msgstr "Claim your username now"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:449
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:344
 msgid "Clear"
 msgstr "Clear"
 
@@ -1515,14 +1526,19 @@ msgstr "Click to copy signing link for sending to recipient"
 msgid "Click to insert field"
 msgstr "Click to insert field"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:415
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:311
 msgid "Click to record your voice"
 msgstr "Click to record your voice"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:579
+msgid "Click to review"
+msgstr "Click to review"
 
 #: apps/web/src/app/(dashboard)/templates/new-template-dialog.tsx:125
 #: apps/web/src/app/(dashboard)/templates/use-template-dialog.tsx:556
 #: apps/web/src/app/(signing)/sign/[token]/document-action-auth-2fa.tsx:125
 #: apps/web/src/app/(signing)/sign/[token]/document-action-auth-passkey.tsx:138
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:810
 #: apps/web/src/app/(teams)/t/[teamUrl]/settings/team-transfer-status.tsx:121
 #: apps/web/src/components/document/document-recipient-link-copy-dialog.tsx:140
 #: apps/web/src/components/forms/2fa/enable-authenticator-app-dialog.tsx:180
@@ -1536,7 +1552,7 @@ msgstr "Close"
 #: apps/web/src/app/(signing)/sign/[token]/sign-dialog.tsx:61
 #: apps/web/src/app/embed/direct/[[...url]]/client.tsx:481
 #: apps/web/src/app/embed/sign/[[...url]]/client.tsx:482
-#: apps/web/src/components/forms/v2/signup.tsx:538
+#: apps/web/src/components/forms/v2/signup.tsx:1565
 msgid "Complete"
 msgstr "Complete"
 
@@ -1599,7 +1615,7 @@ msgstr "Configure general settings for the template."
 msgid "Configure template"
 msgstr "Configure template"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:594
+#: packages/ui/primitives/document-flow/add-fields.tsx:595
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:507
 msgid "Configure the {0} field"
 msgstr "Configure the {0} field"
@@ -1708,7 +1724,7 @@ msgstr "Controls whether the signing certificate will be included in the documen
 msgid "Copied"
 msgstr "Copied"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:169
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:193
 #: apps/web/src/app/(dashboard)/settings/public-profile/public-templates-data-table.tsx:72
 #: apps/web/src/app/(dashboard)/templates/template-direct-link-badge.tsx:31
 #: apps/web/src/app/(dashboard)/templates/template-direct-link-dialog.tsx:163
@@ -1755,7 +1771,7 @@ msgstr "Create"
 msgid "Create a <0>free account</0> to access your signed documents at any time."
 msgstr "Create a <0>free account</0> to access your signed documents at any time."
 
-#: apps/web/src/components/forms/v2/signup.tsx:268
+#: apps/web/src/components/forms/v2/signup.tsx:1126
 msgid "Create a new account"
 msgstr "Create a new account"
 
@@ -1837,9 +1853,9 @@ msgstr "Create Webhook"
 msgid "Create your account and start using state-of-the-art document signing."
 msgstr "Create your account and start using state-of-the-art document signing."
 
-#: apps/web/src/components/forms/v2/signup.tsx:272
-msgid "Create your account and start using state-of-the-art document signing. Open and beautiful signing is within your grasp."
-msgstr "Create your account and start using state-of-the-art document signing. Open and beautiful signing is within your grasp."
+#: apps/web/src/components/forms/v2/signup.tsx:1130
+msgid "Create your account to get started with Documenso."
+msgstr "Create your account to get started with Documenso."
 
 #: apps/web/src/app/(dashboard)/admin/documents/document-results.tsx:62
 #: apps/web/src/app/(dashboard)/admin/leaderboard/data-table-leaderboard.tsx:112
@@ -1874,6 +1890,10 @@ msgstr "Created on"
 msgid "Created on {0}"
 msgstr "Created on {0}"
 
+#: apps/web/src/components/forms/v2/signup.tsx:1565
+msgid "Creating account..."
+msgstr "Creating account..."
+
 #: apps/web/src/components/templates/template-bulk-send-dialog.tsx:143
 msgid "CSV Structure"
 msgstr "CSV Structure"
@@ -1900,7 +1920,7 @@ msgstr "Dark Mode"
 
 #: apps/web/src/app/(dashboard)/settings/security/activity/user-security-activity-data-table.tsx:67
 #: apps/web/src/app/(signing)/sign/[token]/date-field.tsx:152
-#: packages/ui/primitives/document-flow/add-fields.tsx:951
+#: packages/ui/primitives/document-flow/add-fields.tsx:978
 #: packages/ui/primitives/document-flow/types.ts:53
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:826
 msgid "Date"
@@ -1914,6 +1934,10 @@ msgstr "Date created"
 #: packages/ui/primitives/template-flow/add-template-settings.tsx:454
 msgid "Date Format"
 msgstr "Date Format"
+
+#: apps/web/src/components/forms/v2/signup.tsx:1452
+msgid "Debug: Simulate Recording"
+msgstr "Debug: Simulate Recording"
 
 #: apps/web/src/app/(dashboard)/settings/teams/decline-team-invitation-button.tsx:47
 #: packages/email/templates/team-invite.tsx:100
@@ -2214,7 +2238,7 @@ msgid "Document Creation"
 msgstr "Document Creation"
 
 #: apps/web/src/app/(dashboard)/admin/documents/[id]/super-delete-document-dialog.tsx:50
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:182
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:186
 #: apps/web/src/app/(dashboard)/documents/delete-document-dialog.tsx:60
 #: packages/lib/utils/document-audit-logs.ts:306
 msgid "Document deleted"
@@ -2245,7 +2269,7 @@ msgstr "Document Duplicated"
 msgid "Document external ID updated"
 msgstr "Document external ID updated"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:193
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:197
 #: apps/web/src/components/document/document-history-sheet.tsx:104
 msgid "Document history"
 msgstr "Document history"
@@ -2364,7 +2388,7 @@ msgstr "Document will be permanently deleted"
 
 #: apps/web/src/app/(dashboard)/admin/nav.tsx:65
 #: apps/web/src/app/(dashboard)/admin/users/data-table-users.tsx:92
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:145
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:149
 #: apps/web/src/app/(dashboard)/documents/[id]/edit/document-edit-page-view.tsx:109
 #: apps/web/src/app/(dashboard)/documents/[id]/loading.tsx:16
 #: apps/web/src/app/(dashboard)/documents/[id]/sent/page.tsx:15
@@ -2437,7 +2461,7 @@ msgstr "Drafted Documents"
 msgid "Drag & drop your PDF here."
 msgstr "Drag & drop your PDF here."
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:1082
+#: packages/ui/primitives/document-flow/add-fields.tsx:1109
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:957
 msgid "Dropdown"
 msgstr "Dropdown"
@@ -2506,7 +2530,7 @@ msgstr "Electronic Signature Disclosure"
 #: apps/web/src/components/forms/signin.tsx:339
 #: apps/web/src/components/forms/signup.tsx:176
 #: packages/lib/constants/document.ts:28
-#: packages/ui/primitives/document-flow/add-fields.tsx:899
+#: packages/ui/primitives/document-flow/add-fields.tsx:926
 #: packages/ui/primitives/document-flow/add-signers.tsx:513
 #: packages/ui/primitives/document-flow/add-signers.tsx:520
 #: packages/ui/primitives/document-flow/types.ts:54
@@ -2522,7 +2546,7 @@ msgstr "Email"
 msgid "Email address"
 msgstr "Email address"
 
-#: apps/web/src/components/forms/v2/signup.tsx:332
+#: apps/web/src/components/forms/v2/signup.tsx:1199
 msgid "Email Address"
 msgstr "Email Address"
 
@@ -2558,7 +2582,7 @@ msgstr "Email verification has been removed"
 msgid "Email verification has been resent"
 msgstr "Email verification has been resent"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:1147
+#: packages/ui/primitives/document-flow/add-fields.tsx:1174
 msgid "Empty field"
 msgstr "Empty field"
 
@@ -2602,7 +2626,7 @@ msgstr "Enable signing order"
 msgid "Enable Typed Signature"
 msgstr "Enable Typed Signature"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:819
+#: packages/ui/primitives/document-flow/add-fields.tsx:820
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:694
 msgid "Enable Typed Signatures"
 msgstr "Enable Typed Signatures"
@@ -2692,14 +2716,14 @@ msgstr "Enter your text here"
 #: apps/web/src/app/(signing)/sign/[token]/signature-field.tsx:191
 #: apps/web/src/app/(signing)/sign/[token]/text-field.tsx:172
 #: apps/web/src/app/(signing)/sign/[token]/text-field.tsx:202
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:148
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:154
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:186
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:192
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:464
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:470
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:518
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:524
 #: apps/web/src/components/(dashboard)/layout/verify-email-banner.tsx:54
 #: apps/web/src/components/(dashboard)/settings/webhooks/create-webhook-dialog.tsx:101
-#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:224
-#: packages/ui/primitives/pdf-viewer.tsx:166
+#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:347
+#: packages/ui/primitives/pdf-viewer.tsx:181
 msgid "Error"
 msgstr "Error"
 
@@ -2714,6 +2738,10 @@ msgstr "Everyone has signed"
 #: apps/web/src/app/(signing)/sign/[token]/complete/page.tsx:164
 msgid "Everyone has signed! You will receive an Email copy of the signed document."
 msgstr "Everyone has signed! You will receive an Email copy of the signed document."
+
+#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:134
+msgid "Example: I, [Name], agree to the terms in paragraph 3."
+msgstr "Example: I, [Name], agree to the terms in paragraph 3."
 
 #: apps/web/src/app/(dashboard)/settings/security/passkeys/create-passkey-dialog.tsx:232
 msgid "Exceeded timeout"
@@ -2737,13 +2765,13 @@ msgstr "External ID"
 msgid "Failed to reseal document"
 msgstr "Failed to reseal document"
 
-#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:225
+#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:348
 msgid "Failed to save settings."
 msgstr "Failed to save settings."
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:217
-msgid "Failed to transcribe audio. Please try again. ({0})"
-msgstr "Failed to transcribe audio. Please try again. ({0})"
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:203
+msgid "Failed to start recording. Please try again."
+msgstr "Failed to start recording. Please try again."
 
 #: apps/web/src/app/(dashboard)/admin/documents/[id]/recipient-item.tsx:125
 msgid "Failed to update recipient"
@@ -2844,7 +2872,7 @@ msgstr "Free Signature"
 #: apps/web/src/app/embed/direct/[[...url]]/client.tsx:402
 #: apps/web/src/app/embed/sign/[[...url]]/client.tsx:400
 #: apps/web/src/components/forms/profile.tsx:101
-#: apps/web/src/components/forms/v2/signup.tsx:316
+#: apps/web/src/components/forms/v2/signup.tsx:1183
 msgid "Full Name"
 msgstr "Full Name"
 
@@ -3241,7 +3269,7 @@ msgstr "Load older activity"
 
 #: apps/web/src/app/(dashboard)/documents/[id]/loading.tsx:33
 #: packages/ui/primitives/lazy-pdf-viewer.tsx:15
-#: packages/ui/primitives/pdf-viewer.tsx:44
+#: packages/ui/primitives/pdf-viewer.tsx:48
 msgid "Loading document..."
 msgstr "Loading document..."
 
@@ -3386,7 +3414,7 @@ msgstr "Members"
 msgid "Message <0>(Optional)</0>"
 msgstr "Message <0>(Optional)</0>"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:298
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:218
 msgid "Microphone access denied. Please grant permission to use the microphone."
 msgstr "Microphone access denied. Please grant permission to use the microphone."
 
@@ -3394,7 +3422,7 @@ msgstr "Microphone access denied. Please grant permission to use the microphone.
 msgid "Min"
 msgstr "Min"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:56
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:61
 #: apps/web/src/app/(dashboard)/templates/[id]/template-page-view-recipients.tsx:35
 msgid "Modify recipients"
 msgstr "Modify recipients"
@@ -3452,7 +3480,7 @@ msgstr "My templates"
 #: apps/web/src/components/(teams)/dialogs/add-team-email-dialog.tsx:153
 #: apps/web/src/components/(teams)/dialogs/update-team-email-dialog.tsx:141
 #: apps/web/src/components/forms/signup.tsx:160
-#: packages/ui/primitives/document-flow/add-fields.tsx:925
+#: packages/ui/primitives/document-flow/add-fields.tsx:952
 #: packages/ui/primitives/document-flow/add-signers.tsx:551
 #: packages/ui/primitives/document-flow/add-signers.tsx:557
 #: packages/ui/primitives/document-flow/types.ts:55
@@ -3497,7 +3525,7 @@ msgstr "New Template"
 
 #: apps/web/src/app/embed/direct/[[...url]]/client.tsx:472
 #: apps/web/src/app/embed/sign/[[...url]]/client.tsx:471
-#: apps/web/src/components/forms/v2/signup.tsx:525
+#: apps/web/src/components/forms/v2/signup.tsx:1569
 msgid "Next"
 msgstr "Next"
 
@@ -3530,19 +3558,19 @@ msgstr "No recent activity"
 msgid "No recent documents"
 msgstr "No recent documents"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:711
+#: packages/ui/primitives/document-flow/add-fields.tsx:712
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:614
 msgid "No recipient matching this description was found."
 msgstr "No recipient matching this description was found."
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:71
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:76
 #: apps/web/src/app/(dashboard)/templates/[id]/template-page-view-recipients.tsx:49
 #: apps/web/src/components/document/document-recipient-link-copy-dialog.tsx:96
 #: packages/ui/primitives/document-flow/add-subject.tsx:215
 msgid "No recipients"
 msgstr "No recipients"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:726
+#: packages/ui/primitives/document-flow/add-fields.tsx:727
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:629
 msgid "No recipients with this role"
 msgstr "No recipients with this role"
@@ -3603,7 +3631,7 @@ msgid "Nothing to do"
 msgstr "Nothing to do"
 
 #: apps/web/src/app/(signing)/sign/[token]/number-field.tsx:290
-#: packages/ui/primitives/document-flow/add-fields.tsx:1003
+#: packages/ui/primitives/document-flow/add-fields.tsx:1030
 #: packages/ui/primitives/document-flow/types.ts:56
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:878
 msgid "Number"
@@ -3675,7 +3703,7 @@ msgstr "Only admins can access and view the document"
 msgid "Only managers and above can access and view the document"
 msgstr "Only managers and above can access and view the document"
 
-#: apps/web/src/components/forms/v2/signup.tsx:82
+#: apps/web/src/components/forms/v2/signup.tsx:85
 msgid "Only subscribers can have a username shorter than 6 characters"
 msgstr "Only subscribers can have a username shorter than 6 characters"
 
@@ -3694,7 +3722,7 @@ msgstr "Opened"
 #: apps/web/src/app/(dashboard)/templates/template-direct-link-dialog.tsx:336
 #: apps/web/src/components/forms/signup.tsx:239
 #: apps/web/src/components/forms/signup.tsx:263
-#: apps/web/src/components/forms/v2/signup.tsx:387
+#: apps/web/src/components/forms/v2/signup.tsx:1254
 msgid "Or"
 msgstr "Or"
 
@@ -3718,7 +3746,7 @@ msgstr "Owner"
 msgid "Page {0} of {1}"
 msgstr "Page {0} of {1}"
 
-#: packages/ui/primitives/pdf-viewer.tsx:259
+#: packages/ui/primitives/pdf-viewer.tsx:278
 msgid "Page {0} of {numPages}"
 msgstr "Page {0} of {numPages}"
 
@@ -3772,7 +3800,7 @@ msgstr "Passkeys are not supported on this browser"
 #: apps/web/src/components/forms/reset-password.tsx:115
 #: apps/web/src/components/forms/signin.tsx:357
 #: apps/web/src/components/forms/signup.tsx:192
-#: apps/web/src/components/forms/v2/signup.tsx:348
+#: apps/web/src/components/forms/v2/signup.tsx:1215
 msgid "Password"
 msgstr "Password"
 
@@ -3789,7 +3817,7 @@ msgid "Password Reset Successful"
 msgstr "Password Reset Successful"
 
 #: apps/web/src/app/(signing)/sign/[token]/complete/claim-account.tsx:51
-#: apps/web/src/components/forms/v2/signup.tsx:72
+#: apps/web/src/components/forms/v2/signup.tsx:75
 msgid "Password should not be common or based on personal information"
 msgstr "Password should not be common or based on personal information"
 
@@ -3815,7 +3843,7 @@ msgstr "Payment is required to finalise the creation of your team."
 msgid "Payment overdue"
 msgstr "Payment overdue"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:138
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:162
 #: apps/web/src/app/(dashboard)/templates/[id]/template-page-view-documents-table.tsx:205
 #: apps/web/src/components/(teams)/tables/teams-member-page-data-table.tsx:82
 #: apps/web/src/components/(teams)/tables/user-settings-teams-page-data-table.tsx:77
@@ -3870,6 +3898,10 @@ msgstr "Pick any of the following agreements below and start signing to get star
 #: packages/ui/primitives/document-flow/field-items-advanced-settings/text-field.tsx:67
 msgid "Placeholder"
 msgstr "Placeholder"
+
+#: packages/ui/primitives/document/voice-signature-display.tsx:37
+msgid "Play Voice"
+msgstr "Play Voice"
 
 #: packages/email/template-components/template-document-invite.tsx:55
 msgid "Please {0} your document<0/>\"{documentName}\""
@@ -3972,13 +4004,21 @@ msgstr "Please provide a token from the authenticator, or a backup code. If you 
 msgid "Please provide a token from your authenticator, or a backup code."
 msgstr "Please provide a token from your authenticator, or a backup code."
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:239
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:607
+msgid "Please record your voice saying exactly the phrase below:"
+msgstr "Please record your voice saying exactly the phrase below:"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:618
 msgid "Please record your voice signature. Your voice will be automatically transcribed."
 msgstr "Please record your voice signature. Your voice will be automatically transcribed."
 
 #: apps/web/src/app/(signing)/sign/[token]/form.tsx:314
 msgid "Please review the document before signing."
 msgstr "Please review the document before signing."
+
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:292
+msgid "Please say the following phrase:"
+msgstr "Please say the following phrase:"
 
 #: apps/web/src/app/(dashboard)/templates/use-template-dialog.tsx:503
 msgid "Please select a PDF file"
@@ -3996,8 +4036,8 @@ msgstr "Please try again later or login using your normal details"
 msgid "Please try again later."
 msgstr "Please try again later."
 
-#: packages/ui/primitives/pdf-viewer.tsx:223
-#: packages/ui/primitives/pdf-viewer.tsx:238
+#: packages/ui/primitives/pdf-viewer.tsx:242
+#: packages/ui/primitives/pdf-viewer.tsx:257
 msgid "Please try again or contact our support."
 msgstr "Please try again or contact our support."
 
@@ -4073,7 +4113,7 @@ msgstr "Public Profile"
 msgid "Public profile URL"
 msgstr "Public profile URL"
 
-#: apps/web/src/components/forms/v2/signup.tsx:454
+#: apps/web/src/components/forms/v2/signup.tsx:1490
 msgid "Public profile username"
 msgstr "Public profile username"
 
@@ -4105,7 +4145,7 @@ msgstr "Read only field"
 msgid "Read the full <0>signature disclosure</0>."
 msgstr "Read the full <0>signature disclosure</0>."
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:107
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:122
 msgid "Ready"
 msgstr "Ready"
 
@@ -4113,7 +4153,7 @@ msgstr "Ready"
 msgid "Reason"
 msgstr "Reason"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:153
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:177
 msgid "Reason for rejection:"
 msgstr "Reason for rejection:"
 
@@ -4128,6 +4168,10 @@ msgstr "Reason must be less than 500 characters"
 #: apps/web/src/app/(signing)/sign/[token]/document-action-auth-dialog.tsx:62
 msgid "Reauthentication is required to sign this field"
 msgstr "Reauthentication is required to sign this field"
+
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:330
+msgid "REC"
+msgstr "REC"
 
 #: packages/ui/components/recipient/recipient-role-select.tsx:98
 msgid "Receives copy"
@@ -4173,7 +4217,7 @@ msgid "Recipient updated"
 msgstr "Recipient updated"
 
 #: apps/web/src/app/(dashboard)/admin/documents/[id]/page.tsx:66
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:50
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:55
 #: apps/web/src/app/(dashboard)/templates/[id]/template-page-view-recipients.tsx:30
 #: apps/web/src/app/(internal)/%5F%5Fhtmltopdf/audit-log/page.tsx:140
 msgid "Recipients"
@@ -4187,19 +4231,28 @@ msgstr "Recipients metrics"
 msgid "Recipients will still retain their copy of the document"
 msgstr "Recipients will still retain their copy of the document"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:472
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:359
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:367
 msgid "Record"
 msgstr "Record"
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:226
+#: apps/web/src/components/forms/v2/signup.tsx:1142
+msgid "Record a short video for voice verification. This is optional and helps secure your account."
+msgstr "Record a short video for voice verification. This is optional and helps secure your account."
+
+#: apps/web/src/components/forms/v2/signup.tsx:1334
+msgid "Record a short video of yourself saying a specific phrase to set up voice verification. This will be used to verify your identity when signing documents."
+msgstr "Record a short video of yourself saying a specific phrase to set up voice verification. This will be used to verify your identity when signing documents."
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:592
 msgid "Record Voice"
 msgstr "Record Voice"
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:236
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:602
 msgid "Record your voice signature"
 msgstr "Record your voice signature"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:413
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:309
 msgid "Recording... {0}"
 msgstr "Recording... {0}"
 
@@ -4222,7 +4275,7 @@ msgstr "Redirect URL"
 
 #: apps/web/src/app/(signing)/sign/[token]/complete/claim-account.tsx:83
 #: apps/web/src/components/forms/signup.tsx:95
-#: apps/web/src/components/forms/v2/signup.tsx:139
+#: apps/web/src/components/forms/v2/signup.tsx:796
 msgid "Registration Successful"
 msgstr "Registration Successful"
 
@@ -4233,7 +4286,7 @@ msgstr "Registration Successful"
 msgid "Reject Document"
 msgstr "Reject Document"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:148
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:172
 #: apps/web/src/components/(dashboard)/avatar/stack-avatars-with-tooltip.tsx:101
 msgid "Rejected"
 msgstr "Rejected"
@@ -4278,7 +4331,7 @@ msgstr "Reminder: Please {recipientActionVerb} your document"
 #: apps/web/src/components/(teams)/tables/team-members-data-table.tsx:165
 #: apps/web/src/components/forms/avatar-image.tsx:166
 #: apps/web/src/components/templates/template-bulk-send-dialog.tsx:217
-#: packages/ui/primitives/document-flow/add-fields.tsx:1134
+#: packages/ui/primitives/document-flow/add-fields.tsx:1161
 msgid "Remove"
 msgstr "Remove"
 
@@ -4310,6 +4363,10 @@ msgstr "Request transfer"
 #: packages/ui/primitives/document-flow/field-items-advanced-settings/text-field.tsx:151
 msgid "Required field"
 msgstr "Required field"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:723
+msgid "Required Phrase"
+msgstr "Required Phrase"
 
 #: apps/web/src/app/(dashboard)/admin/documents/[id]/admin-actions.tsx:61
 msgid "Reseal document"
@@ -4361,6 +4418,11 @@ msgstr "Resolve payment"
 msgid "Rest assured, your document is strictly confidential and will never be shared. Only your signing experience will be highlighted. Share your personalized signing card to showcase your signature!"
 msgstr "Rest assured, your document is strictly confidential and will never be shared. Only your signing experience will be highlighted. Share your personalized signing card to showcase your signature!"
 
+#: apps/web/src/components/forms/v2/signup.tsx:1402
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:367
+msgid "Retake"
+msgstr "Retake"
+
 #: apps/web/src/app/(unauthenticated)/articles/signature-disclosure/page.tsx:126
 msgid "Retention of Documents"
 msgstr "Retention of Documents"
@@ -4388,6 +4450,10 @@ msgstr "Return to Home"
 #: apps/web/src/app/(unauthenticated)/reset-password/page.tsx:32
 msgid "Return to sign in"
 msgstr "Return to sign in"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:715
+msgid "Review your recorded voice signature and transcript."
+msgstr "Review your recorded voice signature and transcript."
 
 #: apps/web/src/app/(dashboard)/settings/teams/team-email-usage.tsx:118
 msgid "Revoke"
@@ -4418,10 +4484,10 @@ msgstr "Rows per page"
 #: apps/web/src/app/(dashboard)/templates/template-direct-link-dialog.tsx:444
 #: apps/web/src/app/(signing)/sign/[token]/number-field.tsx:356
 #: apps/web/src/app/(signing)/sign/[token]/text-field.tsx:367
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:281
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:702
 #: apps/web/src/app/(teams)/t/[teamUrl]/settings/preferences/branding-preferences.tsx:312
 #: apps/web/src/app/(teams)/t/[teamUrl]/settings/preferences/document-preferences.tsx:305
-#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:322
+#: packages/ui/primitives/document-flow/field-item-advanced-settings.tsx:464
 msgid "Save"
 msgstr "Save"
 
@@ -4586,7 +4652,7 @@ msgstr "Sending Reset Email..."
 msgid "Sending..."
 msgstr "Sending..."
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:102
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:117
 #: apps/web/src/app/(internal)/%5F%5Fhtmltopdf/certificate/page.tsx:258
 msgid "Sent"
 msgstr "Sent"
@@ -4594,6 +4660,10 @@ msgstr "Sent"
 #: apps/web/src/app/(signing)/sign/[token]/complete/claim-account.tsx:148
 msgid "Set a password"
 msgstr "Set a password"
+
+#: apps/web/src/components/forms/v2/signup.tsx:1138
+msgid "Set up voice verification"
+msgstr "Set up voice verification"
 
 #: apps/web/src/app/(dashboard)/settings/layout.tsx:20
 #: apps/web/src/components/(dashboard)/common/command-menu.tsx:65
@@ -4687,7 +4757,7 @@ msgid "Sign field"
 msgstr "Sign field"
 
 #: apps/web/src/components/forms/signup.tsx:208
-#: apps/web/src/components/forms/v2/signup.tsx:366
+#: apps/web/src/components/forms/v2/signup.tsx:1233
 msgid "Sign Here"
 msgstr "Sign Here"
 
@@ -4721,12 +4791,12 @@ msgid "Sign Up"
 msgstr "Sign Up"
 
 #: apps/web/src/components/forms/signup.tsx:253
-#: apps/web/src/components/forms/v2/signup.tsx:405
+#: apps/web/src/components/forms/v2/signup.tsx:1272
 msgid "Sign Up with Google"
 msgstr "Sign Up with Google"
 
 #: apps/web/src/components/forms/signup.tsx:277
-#: apps/web/src/components/forms/v2/signup.tsx:421
+#: apps/web/src/components/forms/v2/signup.tsx:1288
 msgid "Sign Up with OIDC"
 msgstr "Sign Up with OIDC"
 
@@ -4739,7 +4809,7 @@ msgstr "Sign Up with OIDC"
 #: apps/web/src/app/embed/direct/[[...url]]/client.tsx:432
 #: apps/web/src/app/embed/sign/[[...url]]/client.tsx:429
 #: apps/web/src/components/forms/profile.tsx:123
-#: packages/ui/primitives/document-flow/add-fields.tsx:847
+#: packages/ui/primitives/document-flow/add-fields.tsx:848
 #: packages/ui/primitives/document-flow/field-icon.tsx:54
 #: packages/ui/primitives/document-flow/types.ts:49
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:722
@@ -4765,7 +4835,7 @@ msgstr "Signatures Collected"
 msgid "Signatures will appear once the document has been completed"
 msgstr "Signatures will appear once the document has been completed"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:115
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:130
 #: apps/web/src/app/(internal)/%5F%5Fhtmltopdf/certificate/page.tsx:280
 #: apps/web/src/components/document/document-read-only-fields.tsx:84
 #: packages/lib/constants/recipient-roles.ts:23
@@ -4837,7 +4907,7 @@ msgstr "Signing up..."
 msgid "Signing Volume"
 msgstr "Signing Volume"
 
-#: apps/web/src/components/forms/v2/signup.tsx:78
+#: apps/web/src/components/forms/v2/signup.tsx:81
 msgid "Signups are disabled."
 msgstr "Signups are disabled."
 
@@ -4853,6 +4923,10 @@ msgstr "Site Banner"
 #: apps/web/src/app/(dashboard)/admin/site-settings/page.tsx:26
 msgid "Site Settings"
 msgstr "Site Settings"
+
+#: apps/web/src/components/forms/v2/signup.tsx:1467
+msgid "Skip this step"
+msgstr "Skip this step"
 
 #: packages/ui/primitives/document-flow/missing-signature-field-dialog.tsx:34
 msgid "Some signers have not been assigned a signature field. Please assign at least 1 signature field to each signer before proceeding."
@@ -4910,8 +4984,8 @@ msgstr "Something went wrong while attempting to transfer the ownership of team 
 msgid "Something went wrong while attempting to verify your email address for <0>{0}</0>. Please try again later."
 msgstr "Something went wrong while attempting to verify your email address for <0>{0}</0>. Please try again later."
 
-#: packages/ui/primitives/pdf-viewer.tsx:220
-#: packages/ui/primitives/pdf-viewer.tsx:235
+#: packages/ui/primitives/pdf-viewer.tsx:239
+#: packages/ui/primitives/pdf-viewer.tsx:254
 msgid "Something went wrong while loading the document."
 msgstr "Something went wrong while loading the document."
 
@@ -4973,7 +5047,9 @@ msgstr "Status"
 msgid "Step <0>{step} of {maxStep}</0>"
 msgstr "Step <0>{step} of {maxStep}</0>"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:462
+#: apps/web/src/components/forms/v2/signup.tsx:1386
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:349
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:357
 msgid "Stop"
 msgstr "Stop"
 
@@ -5253,7 +5329,7 @@ msgstr "Templates allow you to quickly generate documents with pre-filled recipi
 
 #: apps/web/src/app/(signing)/sign/[token]/text-field.tsx:264
 #: apps/web/src/app/(signing)/sign/[token]/text-field.tsx:293
-#: packages/ui/primitives/document-flow/add-fields.tsx:977
+#: packages/ui/primitives/document-flow/add-fields.tsx:1004
 #: packages/ui/primitives/document-flow/types.ts:52
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:852
 msgid "Text"
@@ -5291,6 +5367,10 @@ msgstr "The account has been disabled successfully."
 #: apps/web/src/app/(dashboard)/admin/users/[id]/enable-user-dialog.tsx:48
 msgid "The account has been enabled successfully."
 msgstr "The account has been enabled successfully."
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:799
+msgid "The audio recording could not be found. This might happen if the field was created with an older version of the voice signature feature."
+msgstr "The audio recording could not be found. This might happen if the field was created with an older version of the voice signature feature."
 
 #: packages/ui/components/recipient/recipient-action-auth-select.tsx:44
 msgid "The authentication required for recipients to sign fields"
@@ -5441,7 +5521,7 @@ msgstr "The signer's email"
 msgid "The signer's name"
 msgstr "The signer's name"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:170
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:194
 #: apps/web/src/components/(dashboard)/avatar/avatar-with-recipient.tsx:41
 #: apps/web/src/components/document/document-recipient-link-copy-dialog.tsx:118
 #: packages/ui/primitives/document-flow/add-subject.tsx:243
@@ -5498,6 +5578,14 @@ msgstr "The token you have used to reset your password is either expired or it n
 msgid "The URL for Documenso to send webhook events to."
 msgstr "The URL for Documenso to send webhook events to."
 
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:768
+msgid "The voice recording did not match the required phrase."
+msgstr "The voice recording did not match the required phrase."
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:756
+msgid "The voice recording matched the required phrase."
+msgstr "The voice recording matched the required phrase."
+
 #: apps/web/src/components/(dashboard)/settings/webhooks/delete-webhook-dialog.tsx:79
 msgid "The webhook has been successfully deleted."
 msgstr "The webhook has been successfully deleted."
@@ -5553,7 +5641,7 @@ msgstr "This document could not be duplicated at this time. Please try again."
 msgid "This document could not be re-sent at this time. Please try again."
 msgstr "This document could not be re-sent at this time. Please try again."
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:782
+#: packages/ui/primitives/document-flow/add-fields.tsx:783
 msgid "This document has already been sent to this recipient. You can no longer edit this recipient."
 msgstr "This document has already been sent to this recipient. You can no longer edit this recipient."
 
@@ -5565,11 +5653,11 @@ msgstr "This document has been cancelled by the owner and is no longer available
 msgid "This document has been cancelled by the owner."
 msgstr "This document has been cancelled by the owner."
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:228
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:232
 msgid "This document has been signed by all recipients"
 msgstr "This document has been signed by all recipients"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:231
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view.tsx:235
 msgid "This document is currently a draft and has not been sent"
 msgstr "This document is currently a draft and has not been sent"
 
@@ -5641,7 +5729,7 @@ msgstr "This passkey is not configured for this application. Please login and ad
 msgid "This price includes minimum 5 seats."
 msgstr "This price includes minimum 5 seats."
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:1114
+#: packages/ui/primitives/document-flow/add-fields.tsx:1141
 msgid "This recipient can no longer be modified as they have signed a field, or completed the document."
 msgstr "This recipient can no longer be modified as they have signed a field, or completed the document."
 
@@ -5652,6 +5740,10 @@ msgstr "This session has expired. Please try again."
 #: packages/ui/primitives/document-flow/add-signers.tsx:200
 msgid "This signer has already signed the document."
 msgstr "This signer has already signed the document."
+
+#: apps/web/src/components/forms/v2/signup.tsx:1437
+msgid "This step is optional. Voice enrollment helps secure your account with biometric verification."
+msgstr "This step is optional. Voice enrollment helps secure your account with biometric verification."
 
 #: apps/web/src/app/(teams)/t/[teamUrl]/settings/page.tsx:195
 msgid "This team, and any associated data excluding billing invoices will be permanently deleted."
@@ -5674,7 +5766,7 @@ msgstr "This token is invalid or has expired. Please contact your team for a new
 msgid "This URL is already in use."
 msgstr "This URL is already in use."
 
-#: apps/web/src/components/forms/v2/signup.tsx:81
+#: apps/web/src/components/forms/v2/signup.tsx:84
 msgid "This username has already been taken"
 msgstr "This username has already been taken"
 
@@ -5755,7 +5847,7 @@ msgstr "To gain access to your account, please confirm your email address by cli
 msgid "To mark this document as viewed, you need to be logged in as <0>{0}</0>"
 msgstr "To mark this document as viewed, you need to be logged in as <0>{0}</0>"
 
-#: packages/ui/primitives/document-flow/add-fields.tsx:1097
+#: packages/ui/primitives/document-flow/add-fields.tsx:1124
 #: packages/ui/primitives/template-flow/add-template-fields.tsx:970
 msgid "To proceed further, please set at least one value for the {0} field."
 msgstr "To proceed further, please set at least one value for the {0} field."
@@ -5829,17 +5921,18 @@ msgstr "Total Signers that Signed Up"
 msgid "Total Users"
 msgstr "Total Users"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:484
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:378
 msgid "Transcribing your voice..."
 msgstr "Transcribing your voice..."
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:499
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:732
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:393
 msgid "Transcript"
 msgstr "Transcript"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:316
-msgid "Transcription failed in the background. You can still save your recording, but without a transcript."
-msgstr "Transcription failed in the background. You can still save your recording, but without a transcript."
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:683
+msgid "Transcription in progress... When you click Save, we'll wait for the transcription to complete first."
+msgstr "Transcription in progress... When you click Save, we'll wait for the transcription to complete first."
 
 #: apps/web/src/components/(teams)/dialogs/transfer-team-dialog.tsx:76
 msgid "transfer {teamName}"
@@ -6144,6 +6237,10 @@ msgstr "Uploaded file is too small"
 msgid "Uploaded file not an allowed file type"
 msgstr "Uploaded file not an allowed file type"
 
+#: apps/web/src/components/forms/v2/signup.tsx:1413
+msgid "Uploading..."
+msgstr "Uploading..."
+
 #: apps/web/src/app/(dashboard)/templates/[id]/template-page-view.tsx:175
 msgid "Use"
 msgstr "Use"
@@ -6161,6 +6258,10 @@ msgstr "Use Backup Code"
 #: apps/web/src/app/(dashboard)/templates/use-template-dialog.tsx:219
 msgid "Use Template"
 msgstr "Use Template"
+
+#: packages/ui/primitives/voice-enrollment/video-recorder.tsx:372
+msgid "Use this recording"
+msgstr "Use this recording"
 
 #: apps/web/src/app/(dashboard)/documents/[id]/logs/document-logs-data-table.tsx:75
 #: apps/web/src/app/(internal)/%5F%5Fhtmltopdf/audit-log/data-table.tsx:45
@@ -6181,7 +6282,7 @@ msgstr "User ID"
 msgid "User not found."
 msgstr "User not found."
 
-#: apps/web/src/components/forms/v2/signup.tsx:238
+#: apps/web/src/components/forms/v2/signup.tsx:1096
 msgid "User profiles are here!"
 msgstr "User profiles are here!"
 
@@ -6189,7 +6290,7 @@ msgstr "User profiles are here!"
 msgid "User settings"
 msgstr "User settings"
 
-#: apps/web/src/components/forms/v2/signup.tsx:79
+#: apps/web/src/components/forms/v2/signup.tsx:82
 msgid "User with this email already exists. Please use a different email address."
 msgstr "User with this email already exists. Please use a different email address."
 
@@ -6220,6 +6321,22 @@ msgstr "Verification Email Sent"
 msgid "Verification email sent successfully."
 msgstr "Verification email sent successfully."
 
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:765
+msgid "Verification Failed"
+msgstr "Verification Failed"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:664
+msgid "Verification failed. Please try again and make sure to say the exact required phrase."
+msgstr "Verification failed. Please try again and make sure to say the exact required phrase."
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:753
+msgid "Verification Successful"
+msgstr "Verification Successful"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:657
+msgid "Verification successful! Your recording matches the required phrase."
+msgstr "Verification successful! Your recording matches the required phrase."
+
 #: apps/web/src/components/(dashboard)/layout/verify-email-banner.tsx:102
 msgid "Verify Now"
 msgstr "Verify Now"
@@ -6239,6 +6356,10 @@ msgstr "Verify your email to upload documents."
 #: packages/email/templates/confirm-team-email.tsx:71
 msgid "Verify your team email address"
 msgstr "Verify your team email address"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:672
+msgid "Verifying your recording against the required phrase..."
+msgstr "Verifying your recording against the required phrase..."
 
 #: apps/web/src/app/(internal)/%5F%5Fhtmltopdf/audit-log/page.tsx:76
 msgid "Version History"
@@ -6323,7 +6444,7 @@ msgstr "View Recovery Codes"
 msgid "View teams"
 msgstr "View teams"
 
-#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:121
+#: apps/web/src/app/(dashboard)/documents/[id]/document-page-view-recipients.tsx:136
 #: apps/web/src/app/(internal)/%5F%5Fhtmltopdf/certificate/page.tsx:269
 #: packages/lib/constants/recipient-roles.ts:30
 msgid "Viewed"
@@ -6341,17 +6462,45 @@ msgstr "Viewers"
 msgid "Viewing"
 msgstr "Viewing"
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:219
+#: packages/ui/primitives/document-flow/add-fields.tsx:874
+msgid "Voice"
+msgstr "Voice"
+
+#: apps/web/src/components/forms/v2/signup.tsx:1521
+msgid "Voice enrollment"
+msgstr "Voice enrollment"
+
+#: apps/web/src/components/forms/v2/signup.tsx:1330
+msgid "Voice Enrollment"
+msgstr "Voice Enrollment"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:573
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:584
 msgid "Voice Recorded"
 msgstr "Voice Recorded"
 
-#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:403
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:780
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:796
+#: packages/ui/primitives/voice-signature/voice-signature-pad.tsx:299
 msgid "Voice Recording"
 msgstr "Voice Recording"
 
 #: packages/ui/primitives/document-flow/types.ts:60
+#: packages/ui/primitives/voice-signature/voice-signature-player.tsx:130
 msgid "Voice Signature"
 msgstr "Voice Signature"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:712
+msgid "Voice Signature Review"
+msgstr "Voice Signature Review"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:364
+msgid "Voice verification failed"
+msgstr "Voice verification failed"
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:702
+msgid "Wait & Save"
+msgstr "Wait & Save"
 
 #: apps/web/src/components/(dashboard)/avatar/stack-avatars-with-tooltip.tsx:125
 msgid "Waiting"
@@ -6486,8 +6635,8 @@ msgstr "We encountered an unknown error while attempting to sign you In. Please 
 
 #: apps/web/src/components/forms/signup.tsx:126
 #: apps/web/src/components/forms/signup.tsx:140
-#: apps/web/src/components/forms/v2/signup.tsx:189
-#: apps/web/src/components/forms/v2/signup.tsx:203
+#: apps/web/src/components/forms/v2/signup.tsx:863
+#: apps/web/src/components/forms/v2/signup.tsx:879
 msgid "We encountered an unknown error while attempting to sign you Up. Please try again later."
 msgstr "We encountered an unknown error while attempting to sign you Up. Please try again later."
 
@@ -6548,7 +6697,7 @@ msgstr "We were unable to copy your recovery code to your clipboard. Please try 
 msgid "We were unable to create a checkout session. Please try again, or contact support"
 msgstr "We were unable to create a checkout session. Please try again, or contact support"
 
-#: apps/web/src/components/forms/v2/signup.tsx:80
+#: apps/web/src/components/forms/v2/signup.tsx:83
 msgid "We were unable to create your account. Please review the information you provided and try again."
 msgstr "We were unable to create your account. Please review the information you provided and try again."
 
@@ -6796,10 +6945,6 @@ msgstr "You can copy and share these links to recipients so they can action the 
 msgid "You can revoke access at any time in your team settings on Documenso <0>here.</0>"
 msgstr "You can revoke access at any time in your team settings on Documenso <0>here.</0>"
 
-#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:263
-msgid "You can save your voice signature now, or wait for the transcription to complete."
-msgstr "You can save your voice signature now, or wait for the transcription to complete."
-
 #: apps/web/src/components/forms/public-profile-form.tsx:154
 msgid "You can update the profile URL by updating the team URL in the general settings page."
 msgstr "You can update the profile URL by updating the team URL in the general settings page."
@@ -6945,7 +7090,7 @@ msgstr "You have successfully left this team."
 
 #: apps/web/src/app/(signing)/sign/[token]/complete/claim-account.tsx:85
 #: apps/web/src/components/forms/signup.tsx:97
-#: apps/web/src/components/forms/v2/signup.tsx:141
+#: apps/web/src/components/forms/v2/signup.tsx:798
 msgid "You have successfully registered. Please verify your account by clicking on the link you received in the email."
 msgstr "You have successfully registered. Please verify your account by clicking on the link you received in the email."
 
@@ -6998,10 +7143,6 @@ msgstr "You need to be logged in to view this page."
 #: apps/web/src/app/(signing)/sign/[token]/document-action-auth-2fa.tsx:105
 msgid "You need to setup 2FA to mark this document as viewed."
 msgstr "You need to setup 2FA to mark this document as viewed."
-
-#: apps/web/src/components/forms/v2/signup.tsx:287
-msgid "You will get notified & be able to set up your documenso public profile when we launch the feature."
-msgstr "You will get notified & be able to set up your documenso public profile when we launch the feature."
 
 #: apps/web/src/components/forms/2fa/enable-authenticator-app-dialog.tsx:96
 msgid "You will now be required to enter a code from your authenticator app when signing in."
@@ -7188,3 +7329,7 @@ msgstr "Your token was created successfully! Make sure to copy it because you wo
 #: apps/web/src/app/(teams)/t/[teamUrl]/settings/tokens/page.tsx:86
 msgid "Your tokens will be shown here once you create them."
 msgstr "Your tokens will be shown here once you create them."
+
+#: apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx:366
+msgid "Your voice recording does not match the required phrase. Please try again."
+msgstr "Your voice recording does not match the required phrase. Please try again."

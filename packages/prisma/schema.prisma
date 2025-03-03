@@ -51,6 +51,11 @@ model User {
   avatarImageId    String?
   disabled         Boolean          @default(false)
 
+  // Voice enrollment fields
+  voiceEnrollmentComplete Boolean   @default(false)
+  voiceEnrollmentDate     DateTime?
+  voiceProfileId          String?
+
   accounts             Account[]
   sessions             Session[]
   documents            Document[]
@@ -75,7 +80,7 @@ model User {
   avatarImage        AvatarImage?           @relation(fields: [avatarImageId], references: [id], onDelete: SetNull)
 
   // Voice enrollment relation
-  voiceEnrollments   VoiceEnrollment[]
+  voiceEnrollments VoiceEnrollment[]
 
   @@index([email])
 }
@@ -508,16 +513,16 @@ model Signature {
   fieldId                Int      @unique
   signatureImageAsBase64 String?
   typedSignature         String?
-  
-  // Voice signature fields
-  voiceSignatureUrl          String?
-  voiceSignatureTranscript   String?
-  voiceSignatureMetadata     Json?
-  voiceSignatureCreatedAt    DateTime?
-  voiceEnrollmentId          String?
 
-  recipient Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
-  field     Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  // Voice signature fields
+  voiceSignatureUrl        String?
+  voiceSignatureTranscript String?
+  voiceSignatureMetadata   Json?
+  voiceSignatureCreatedAt  DateTime?
+  voiceEnrollmentId        String?
+
+  recipient       Recipient        @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  field           Field            @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   voiceEnrollment VoiceEnrollment? @relation(fields: [voiceEnrollmentId], references: [id], onDelete: SetNull)
 
   @@index([recipientId])
@@ -796,16 +801,31 @@ model AvatarImage {
 
 // New model for voice enrollment
 model VoiceEnrollment {
-  id                String    @id @default(cuid())
-  userId            Int
-  createdAt         DateTime  @default(now())
-  lastUsedAt        DateTime?
-  voicePatternData  Bytes     @db.ByteA
-  isActive          Boolean   @default(true)
-  
+  id         String    @id @default(cuid())
+  userId     Int
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastUsedAt DateTime?
+
+  // Video and audio storage
+  videoUrl      String? // URL to stored enrollment video
+  audioUrl      String? // URL to extracted audio
+  videoDuration Int? // Duration in seconds
+
+  // Voice pattern data (extracted features for verification)
+  voicePatternData Bytes?  @db.ByteA
+  voiceProfileId   String? // ID from voice verification API
+
+  // Status tracking
+  isProcessed      Boolean @default(false)
+  isActive         Boolean @default(true)
+  processingStatus String? // For tracking extraction/processing status
+  processingError  String? // For storing any errors during processing
+
   // Reference to enrollment video (for development)
   enrollmentVideoPath String?
-  
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  signatures        Signature[]
+
+  // Relations
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signatures Signature[]
 }

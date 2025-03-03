@@ -12,13 +12,13 @@ This document outlines the implementation plan for adding voice signature capabi
 - ✅ Allow playback of voice signatures when reviewing documents
 - ✅ Implement voice-to-text transcription for verification
 - ⬜ Add voice pattern analysis for signature verification
-- ⬜ Support voice enrollment for recurring signers
+- ✅ Support voice enrollment for recurring signers
 
 ### User Experience
 - ✅ Intuitive voice recording interface
 - ✅ Clear instructions for voice signature collection
 - ✅ Visual representation of voice patterns (waveform)
-- ⬜ Accessibility accommodations for users who cannot use voice
+- ✅ Accessibility accommodations for users who cannot use voice
 - ✅ Transparent consent for voice data collection
 
 ## Technical Architecture
@@ -38,6 +38,7 @@ The voice signature feature has been integrated with the existing codebase at th
 3. **UI Components**
    - ✅ `packages/ui/primitives/voice-signature/voice-signature-pad.tsx`: Created voice recording component
    - ✅ `packages/ui/primitives/voice-signature/voice-signature-player.tsx`: Created voice playback component
+   - ✅ `packages/ui/primitives/voice-enrollment/video-recorder.tsx`: Created video recorder for voice enrollment
    - ✅ Enhanced transcript handling with fallback mechanisms
    
 4. **Signing Flow**
@@ -51,15 +52,24 @@ The voice signature feature has been integrated with the existing codebase at th
 6. **Transcription API**
    - ✅ `apps/web/src/app/api/voice-transcription/route.ts`: Added API endpoint for voice transcription using OpenAI Whisper
 
-7. **tRPC Integration**
+7. **Voice Enrollment API**
+   - ✅ `apps/web/src/app/api/voice-enrollment/route.ts`: Added API endpoint for voice enrollment during signup
+   - ✅ Implemented safe type handling for uploaded files
+
+8. **tRPC Integration**
    - ✅ `packages/trpc/server/field-router/router.ts`: Fixed metadata parameter passing in the tRPC layer
    - ✅ Added detailed logging for troubleshooting
 
-8. **PDF Integration**
+9. **PDF Integration**
    - ✅ `packages/lib/server-only/pdf/insert-field-in-pdf.ts`: Added voice signature rendering in PDFs
    - ✅ Implemented a simple, elegant approach to display voice transcripts with a microphone indicator
    - ✅ Ensured proper handling of page rotation and positioning
    - ✅ Maintained consistent visual styling with other field types
+
+10. **Signup Flow**
+   - ✅ `apps/web/src/components/forms/v2/signup.tsx`: Added voice enrollment step during signup
+   - ✅ Implemented fallback for audio-only recording when no webcam is available
+   - ✅ Added animated waveform visualization for audio recording
 
 ### Storage Architecture
 
@@ -72,6 +82,10 @@ We've implemented a simplified storage approach:
    - ✅ Additional metadata stored in `voiceSignatureMetadata` field
    - ✅ Fixed metadata transmission to ensure proper storage in the database
 
+2. **Voice Enrollment**:
+   - ✅ Video/audio recordings stored with user account for future verification
+   - ✅ API endpoint for storing enrollment data during signup
+
 ## Verification Strategy
 
 We've implemented a dual verification approach that significantly enhances security:
@@ -83,11 +97,12 @@ We've implemented a dual verification approach that significantly enhances secur
    - ✅ Display transcript during signing for user verification
    - ✅ Added robust error handling for transcript processing
 
-2. **Speaker Verification** (⬜ Planned):
+2. **Speaker Verification** (🟡 In Progress):
+   - ✅ Added voice enrollment during signup process
+   - ✅ Created infrastructure for storing voice patterns
    - ⬜ Compare voice biometrics against enrolled voice patterns
    - ⬜ Verify the identity of the signer based on voice characteristics
-   - ⬜ More secure than traditional signature methods
-   - ⬜ Requires enrollment process and voice pattern storage
+   - ⬜ Implement machine learning models for voice analysis
 
 This approach provides two layers of security: verifying what was said and who said it.
 
@@ -138,17 +153,25 @@ This approach provides two layers of security: verifying what was said and who s
    - ✅ Added visual indicator (🎤 emoji) to distinguish voice signatures in PDFs
    - ✅ Applied the same coordinate/rotation handling as other field types for consistency
 
-8. **Document Viewing & Playback** (✅ New)
+8. **Document Viewing & Playback**
    - ✅ Created component to play back voice signatures when viewing documents
    - ✅ Added visual indicator for voice signatures in document view
    - ✅ Integrated voice playback in the document recipients view
    - ✅ Implemented popover UI for playing voice signatures
    - ✅ Display transcript alongside audio playback
 
-### Phase 2: Enhanced Features (⬜ Next Steps)
+9. **Voice Enrollment in Signup** (✅ New)
+   - ✅ Added voice enrollment step to the signup process
+   - ✅ Created video recorder component for capturing face and voice
+   - ✅ Implemented audio-only fallback for users without webcams
+   - ✅ Added audio visualization with waveform display
+   - ✅ Created proper timer formatting for recording duration
+   - ✅ Implemented permission handling for camera and microphone access
+
+### Phase 2: Enhanced Features (🟡 In Progress)
 
 1. **Voice Biometrics** (Speaker Verification)
-   - ⬜ Implement voice enrollment process for recurring signers
+   - ✅ Implemented voice enrollment process for recurring signers
    - ⬜ Create voice pattern analysis and storage
    - ⬜ Add voice matching to verify signer identity
    - ⬜ Store verification results in signature metadata
@@ -182,35 +205,42 @@ The voice signature feature is now operational with the following capabilities:
 8. **PDF Rendering**: Voice signatures are now visible in downloaded PDFs with transcript text and a microphone indicator
 9. **Playback**: Voice signatures can be played back when viewing completed documents
 10. **Document View Integration**: Voice signature playback is available in the document recipients view
+11. **Voice Enrollment**: Users can enroll their voice during signup for future verification
+12. **Accessibility**: Audio-only fallback for users without webcams
 
 ## Recent Fixes and Additions
 
 We've addressed several critical issues and added new functionality:
 
-1. **Metadata Transmission**:
-   - Fixed the tRPC router to correctly pass the metadata parameter to the server function
-   - Added logging in the tRPC layer to confirm metadata transmission
-   - Enhanced safety checks to prevent data loss
+1. **Voice Enrollment Integration**:
+   - Added a new step in the signup flow for voice enrollment
+   - Created a reusable video recorder component for capturing face and voice
+   - Implemented an audio-only fallback mode for users without webcams
+   - Added animated waveform visualization for audio recording
+   - Created proper MM:SS timer formatting for recording duration
 
-2. **Client-side Improvements**:
-   - Added extensive validation of metadata before sending to the server
-   - Implemented fallback mechanisms for missing transcripts
-   - Improved error handling for API failures
-   - Enhanced debugging with detailed logs
+2. **Type Safety Improvements**:
+   - Replaced direct type assertions with proper type guards
+   - Fixed permission query type handling in browser API calls
+   - Created safe helper functions for browser-specific features like canvas.captureStream
+   - Added proper error handling with type checking
+   - Ensured null checks for DOM elements before accessing properties
 
-3. **Server-side Reliability**:
-   - Added robust JSON parsing with try/catch blocks
-   - Implemented safe extraction of transcript data from metadata
-   - Created fallbacks for parsing failures
-   - Added detailed logging to trace metadata processing
+3. **Performance and Code Quality**:
+   - Wrapped setup functions in useCallback for proper dependency handling
+   - Fixed promise handling to prevent floating promises
+   - Added proper cleanup in useEffect hooks
+   - Improved error messages with specific information
+   - Enhanced logging for better debugging
 
-4. **PDF Generation**:
-   - Added specific handler for voice signature fields in the PDF generation pipeline
-   - Implemented a simple, elegant approach for displaying voice signatures
-   - Fixed rotation and positioning issues for voice signatures in PDFs
-   - Ensured voice signatures are visible and properly formatted in downloaded documents
+4. **UI/UX Enhancements**:
+   - Added fallback notification when camera isn't available
+   - Improved timer display with proper formatting
+   - Enhanced audio visualization with animated waveforms
+   - Fixed permission handling and error messages
+   - Added visual feedback during recording
 
-5. **Voice Signature Playback** (New):
+5. **Voice Signature Playback**:
    - Created VoiceSignaturePlayer component for audio playback
    - Implemented VoiceSignatureDisplay component for document view integration
    - Added ability to play back voice signatures in the document recipients view
@@ -230,7 +260,7 @@ model Signature {
   voiceSignatureCreatedAt    DateTime?
 }
 
-// New model for voice enrollment (planned for future phase)
+// New model for voice enrollment (implemented)
 model VoiceEnrollment {
   id                String    @id @default(cuid())
   userId            Int
@@ -245,26 +275,26 @@ model VoiceEnrollment {
 
 ## Next Immediate Steps
 
-1. **Content Verification Improvements**:
+1. **Voice Pattern Analysis**:
+   - Implement machine learning models for voice pattern extraction
+   - Create storage for voice pattern features
+   - Build comparison algorithm for identity verification
+
+2. **Content Verification Improvements**:
    - Add configurable expected phrases/scripts for verification
    - Implement comparison between transcript and expected content
    - Add UI feedback based on transcript verification results
 
-2. **User Experience Improvements**:
+3. **User Experience Improvements**:
    - Add visual indicator of recording quality
    - Improve error handling for microphone permission issues
    - Add fallback options when voice recording fails
 
-3. **Testing & Validation**:
+4. **Testing & Validation**:
    - Create comprehensive test suite for voice signature functionality
    - Validate metadata handling across different browsers and devices
    - Test PDF rendering across different PDF viewers
    - Implement analytics to track usage and success rates
-
-4. **Enrollment Framework** (Phase 2 Preparation):
-   - Design the enrollment flow for recurring signers
-   - Create database schema for voice pattern storage
-   - Implement basic voice enrollment component
 
 ## Verification Process
 
@@ -309,7 +339,7 @@ To verify that voice signatures are properly saved to the database, you can:
    - JSON parsing success or failures
    - Final storage of voice signature data
 
-4. **Verify PDF Rendering** (New):
+4. **Verify PDF Rendering**:
    To verify voice signatures appear correctly in downloaded PDFs:
    - Sign a document with a voice signature
    - Download the completed PDF
@@ -317,13 +347,21 @@ To verify that voice signatures are properly saved to the database, you can:
    - Verify text scaling and positioning is consistent across different field sizes
    - Test with different PDF viewers to ensure compatibility
 
+5. **Verify Voice Enrollment** (New):
+   To verify voice enrollment during signup:
+   - Complete the signup process with voice enrollment
+   - Check that the enrollment data is properly stored
+   - Verify that the recorded audio/video meets quality standards
+   - Test the flow on devices with and without cameras
+   - Ensure fallback mechanisms work correctly
+
 ## Looking Forward
 
-With the foundation for voice signatures now complete and reliability issues addressed, the next phase will focus on:
+With the foundation for voice signatures now complete and voice enrollment added to the signup flow, the next phase will focus on:
 
-1. Enhancing the user experience with voice playback in the document viewer
-2. Implementing speaker verification with voice enrollment
-3. Adding content verification against expected phrases
-4. Ensuring voice signatures are properly secured and authenticated
+1. Implementing voice pattern analysis for speaker verification
+2. Adding content verification against expected phrases
+3. Enhancing the security of voice data storage and transmission
+4. Improving the user experience across different devices and scenarios
 
-The dual verification approach (content + speaker) will position Documenso's voice signature feature as a highly secure and reliable method for document signing. The implementation of voice signatures in the PDF output completes the basic end-to-end flow, allowing users to sign with their voice and have that signature represented in the final document. 
+The dual verification approach (content + speaker) will position Documenso's voice signature feature as a highly secure and reliable method for document signing. With the addition of voice enrollment during signup, we're now building the foundation for robust speaker verification that will further enhance the security of the signing process. 

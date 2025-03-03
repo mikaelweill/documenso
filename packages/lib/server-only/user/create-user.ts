@@ -16,9 +16,19 @@ export interface CreateUserOptions {
   password: string;
   signature?: string | null;
   url?: string;
+  voiceEnrollmentVideoUrl?: string;
+  voiceEnrollmentDuration?: number;
 }
 
-export const createUser = async ({ name, email, password, signature, url }: CreateUserOptions) => {
+export const createUser = async ({
+  name,
+  email,
+  password,
+  signature,
+  url,
+  voiceEnrollmentVideoUrl,
+  voiceEnrollmentDuration,
+}: CreateUserOptions) => {
   const hashedPassword = await hash(password, SALT_ROUNDS);
 
   const userExists = await prisma.user.findFirst({
@@ -56,6 +66,31 @@ export const createUser = async ({ name, email, password, signature, url }: Crea
       url,
     },
   });
+
+  // Create voice enrollment if video URL is provided
+  if (voiceEnrollmentVideoUrl) {
+    try {
+      // Import prisma dynamically to avoid circular dependencies
+      // so we handle potential import and runtime errors gracefully
+      const { prisma } = await import('@documenso/prisma');
+
+      // Create voice enrollment record
+      await prisma.voiceEnrollment.create({
+        data: {
+          userId: user.id,
+          videoUrl: voiceEnrollmentVideoUrl,
+          videoDuration: voiceEnrollmentDuration || 0,
+          isProcessed: false,
+          processingStatus: 'PENDING',
+        },
+      });
+
+      console.log(`Voice enrollment created for user ${user.id}`);
+    } catch (error) {
+      console.error('Failed to create voice enrollment:', error);
+      // Non-critical error, continue with user creation
+    }
+  }
 
   const acceptedTeamInvites = await prisma.teamMemberInvite.findMany({
     where: {

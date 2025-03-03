@@ -20,7 +20,7 @@ import { z } from 'zod';
 import communityCardsImage from '@documenso/assets/images/community-cards.png';
 import { useAnalytics } from '@documenso/lib/client-only/hooks/use-analytics';
 import { NEXT_PUBLIC_WEBAPP_URL } from '@documenso/lib/constants/app';
-import { AppError, AppErrorCode } from '@documenso/lib/errors/app-error';
+import { AppErrorCode } from '@documenso/lib/errors/app-error';
 import { trpc } from '@documenso/trpc/react';
 import { ZPasswordSchema } from '@documenso/trpc/server/auth-router/schema';
 import { cn } from '@documenso/ui/lib/utils';
@@ -63,6 +63,8 @@ export const ZSignUpFormV2Schema = z
         message: msg`Username can only container alphanumeric characters and dashes.`.id,
       }),
     voiceEnrollmentComplete: z.boolean().optional().default(false),
+    voiceEnrollmentVideoUrl: z.string().optional(),
+    voiceEnrollmentDuration: z.number().optional(),
   })
   .refine(
     (data) => {
@@ -140,6 +142,8 @@ export const SignUpFormV2 = ({
       password: '',
       signature: undefined,
       voiceEnrollmentComplete: false,
+      voiceEnrollmentVideoUrl: undefined,
+      voiceEnrollmentDuration: undefined,
       url: urlParam,
     },
   });
@@ -156,7 +160,6 @@ export const SignUpFormV2 = ({
   const [recordingStream, setRecordingStream] = useState<MediaStream | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
-  const [_recordingStartTime, setRecordingStartTime] = useState<number>(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const recordingChunks = useRef<Blob[]>([]);
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -179,63 +182,50 @@ export const SignUpFormV2 = ({
   // Add missing state variables
   const [_isCameraReady, setIsCameraReady] = useState(false);
 
+  // Define recordingStartTime state - ensure there's only one definition
+  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+
   // Add a function to animate the audio canvas during recording
   const drawAudioWaveform = (canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas with black background
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas with transparent background since it overlays the video
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Add title text
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('Audio Only Mode', canvas.width / 2, canvas.height / 2 - 40);
-
-    // Add subtitle
-    ctx.font = '16px Arial';
-    ctx.fillText(
-      'No camera detected - recording audio only',
-      canvas.width / 2,
-      canvas.height / 2 - 10,
-    );
+    // No need for title text since we have the banner
 
     // If recording, draw a simple audio visualization
     if (isRecording) {
-      const centerY = canvas.height / 2 + 40;
-      const width = 300;
-      const height = 60;
+      const centerY = canvas.height / 2;
+      const width = Math.min(400, canvas.width * 0.8);
+      const height = 80;
       const startX = (canvas.width - width) / 2;
 
-      // Draw background bar
-      ctx.fillStyle = '#333';
+      // Draw a semi-transparent background for the visualization
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
       ctx.fillRect(startX, centerY - height / 2, width, height);
 
-      // Draw animated waveform
-      ctx.fillStyle = '#ff4545';
-      const barCount = 20;
+      // Draw the waveform
+      ctx.fillStyle = '#4CAF50';
+      ctx.strokeStyle = '#FFF';
+      ctx.lineWidth = 2;
+
+      // Number of bars
+      const barCount = 30;
       const barWidth = (width - (barCount - 1) * 2) / barCount;
+      const barMaxHeight = height * 0.8;
 
+      // Draw bars with animation
       for (let i = 0; i < barCount; i++) {
-        // Generate a pseudo-random height based on time and position
-        const randomHeight = Math.sin(Date.now() / 200 + i * 0.3) * 0.5 + 0.5;
-        const barHeight = height * randomHeight * 0.8;
         const x = startX + i * (barWidth + 2);
-        const y = centerY - barHeight / 2;
+        // Use time and position to create a dynamic waveform
+        const time = Date.now() / 200;
+        const amplitude = Math.sin(time + i * 0.2) * 0.5 + 0.5;
+        const barHeight = barMaxHeight * amplitude;
 
-        ctx.fillRect(x, y, barWidth, barHeight);
+        ctx.fillRect(x, centerY - barHeight / 2, barWidth, barHeight);
       }
-
-      // Add recording duration
-      ctx.fillStyle = 'white';
-      ctx.font = '18px Arial';
-      ctx.fillText(
-        `Recording: ${formatTime(recordingDuration)}`,
-        canvas.width / 2,
-        centerY + height / 2 + 30,
-      );
     }
 
     // Continue animation if recording
@@ -248,43 +238,93 @@ export const SignUpFormV2 = ({
     }
   };
 
-  // Wrap cleanup function in useCallback to avoid dependency issues in useEffect
+  // Add a proper cleanup function
   const cleanupVideoRecording = useCallback(() => {
+    // Don't clean up if we're currently recording
+    if (isRecording) {
+      console.log('Skipping cleanup while recording is active');
+      return;
+    }
+
+    console.log('Cleaning up video recording resources...');
+
+    // Stop any ongoing recording
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try {
+        mediaRecorder.stop();
+      } catch (error) {
+        console.error('Error stopping media recorder during cleanup:', error);
+      }
+    }
+
+    // Stop all tracks in the recording stream
+    if (recordingStream) {
+      recordingStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (error) {
+          console.error('Error stopping track:', error);
+        }
+      });
+    }
+
     // Cancel animation frame
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
 
-    // Clear any running timer
+    // Clear interval
     if (durationTimerRef.current) {
       clearInterval(durationTimerRef.current);
       durationTimerRef.current = null;
     }
 
-    // Stop all tracks in the stream
-    if (recordingStream) {
-      recordingStream.getTracks().forEach((track) => track.stop());
-      setRecordingStream(null);
-    }
+    // Reset state
+    setRecordingStream(null);
+    setMediaRecorder(null);
+    setIsRecording(false);
+    setIsCameraReady(false);
 
-    // Ensure recorder is stopped
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      try {
-        mediaRecorder.stop();
-      } catch (error) {
-        console.error('Error stopping recorder:', error);
+    console.log('Video recording resources cleaned up');
+  }, [mediaRecorder, recordingStream, isRecording]);
+
+  // Add useEffect cleanup when component unmounts
+  useEffect(() => {
+    return () => {
+      console.log('Component unmounting, cleaning up all resources');
+
+      // Stop any active recording
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        try {
+          mediaRecorder.stop();
+        } catch (error) {
+          console.error('Error stopping media recorder during unmount:', error);
+        }
       }
-      setMediaRecorder(null);
-    }
 
-    // Reset states
-    setIsAudioOnlyMode(false);
-    setRecordingDuration(0);
+      // Stop all tracks
+      if (recordingStream) {
+        recordingStream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (error) {
+            console.error('Error stopping track during unmount:', error);
+          }
+        });
+      }
 
-    // Clear canvas ref
-    canvasRef.current = null;
-  }, [recordingStream, mediaRecorder]); // Include dependencies
+      // Cancel animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      // Clear interval
+      if (durationTimerRef.current) {
+        clearInterval(durationTimerRef.current);
+      }
+    };
+  }, []);
 
   // Fix permission name type
   const checkPermissionStatus = async () => {
@@ -310,49 +350,55 @@ export const SignUpFormV2 = ({
   };
 
   // Move startCameraAudioOnly function above startCamera to fix reference
-  const startCameraAudioOnly = async () => {
+  const startCameraAudioOnly = async (): Promise<MediaStream | null> => {
     try {
+      console.log('Starting audio-only mode...');
+
+      // Only clean up tracks, don't reset state
+      if (recordingStream) {
+        recordingStream.getTracks().forEach((track) => track.stop());
+      }
+
       // Get audio stream
       const audioStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: false,
       });
 
+      console.log('Audio stream acquired:', audioStream);
+
       // Set up canvas for audio visualization
       const canvas = document.getElementById('audio-canvas');
+      console.log('Canvas element found:', canvas);
+
       if (canvas instanceof HTMLCanvasElement) {
         canvasRef.current = canvas;
+        setIsCameraReady(true);
 
-        // Use helper function instead of type assertion
+        // Create canvas stream
         const canvasStream = safeCanvasStream(canvas, 30);
 
-        // Combine audio track with canvas stream
+        // Add audio track to canvas stream
         const audioTrack = audioStream.getAudioTracks()[0];
         canvasStream.addTrack(audioTrack);
 
-        // Use combined stream for recording
-        setRecordingStream(canvasStream);
+        console.log('Setting recording stream with canvas and audio');
+        console.log('Canvas stream created and audio track added');
 
-        // Start animating the audio waveform
-        if (drawAudioWaveform) {
-          drawAudioWaveform(canvas);
-        }
-
-        setIsCameraReady(true);
-      } else {
-        // No canvas found, just use audio stream directly
-        setRecordingStream(audioStream);
-        setIsCameraReady(true);
+        return canvasStream;
       }
+
+      // If we got here, no canvas was found, use just audio
+      setIsCameraReady(true);
+      return audioStream;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error in audio-only mode:', error);
-      setPermissionsError(`Error accessing microphone: ${errorMessage}`);
+      return null;
     }
   };
 
   // Restore the startCamera function with our helper
-  const startCamera = async () => {
+  const startCamera = async (): Promise<MediaStream | null> => {
     try {
       // Check if permissions are already blocked
       const permissionStatus = await checkPermissionStatus();
@@ -374,13 +420,15 @@ export const SignUpFormV2 = ({
           variant: 'destructive',
           duration: 10000,
         });
-        return;
+        return null;
       }
 
-      // Cleanup any existing recording
-      cleanupVideoRecording();
+      // Only stop tracks, don't reset state
+      if (recordingStream) {
+        recordingStream.getTracks().forEach((track) => track.stop());
+      }
 
-      // Reset state
+      // Reset video blob but not other state
       setVideoBlob(null);
       recordingChunks.current = [];
 
@@ -392,7 +440,6 @@ export const SignUpFormV2 = ({
             video: false,
           });
 
-          setRecordingStream(audioStream);
           setIsCameraReady(true);
 
           // Set up canvas for audio visualization
@@ -407,9 +454,11 @@ export const SignUpFormV2 = ({
             const audioTrack = audioStream.getAudioTracks()[0];
             canvasStream.addTrack(audioTrack);
 
-            // Use combined stream for recording
-            setRecordingStream(canvasStream);
+            return canvasStream;
           }
+
+          // If we can't set up the canvas, just return the audio stream
+          return audioStream;
         } else {
           // Video mode - try to get both video and audio
           const videoStream = await navigator.mediaDevices.getUserMedia({
@@ -417,8 +466,8 @@ export const SignUpFormV2 = ({
             audio: true,
           });
 
-          setRecordingStream(videoStream);
           setIsAudioOnlyMode(false);
+          setIsCameraReady(true);
 
           // Set video source
           const videoElement = document.getElementById('enrollment-video-preview');
@@ -426,6 +475,8 @@ export const SignUpFormV2 = ({
             videoElement.srcObject = videoStream;
             videoElement.play().catch(console.error);
           }
+
+          return videoStream;
         }
       } catch (error: unknown) {
         console.error('Error accessing media devices:', error);
@@ -440,185 +491,149 @@ export const SignUpFormV2 = ({
             'name' in error &&
             error.name === 'DevicesNotFoundError')
         ) {
-          // No webcam available, switch to audio-only mode
-          setIsAudioOnlyMode(true);
-          toast({
-            title: 'No camera detected',
-            description: 'Switching to audio-only mode.',
-            variant: 'default',
-          });
+          // No webcam available, but don't switch to audio-only mode
+          // Instead, create a black video stream but still get audio
+          console.log('No camera detected, creating a black video stream with audio');
 
-          // Try again with audio only
-          void startCameraAudioOnly();
+          try {
+            // Get just audio
+            const audioStream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+              video: false,
+            });
+
+            // Create a canvas for black video
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+
+            // Draw black background
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = 'black';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Get stream from canvas (for video)
+            const canvasStream = safeCanvasStream(canvas, 30);
+
+            // Add audio track to the canvas stream
+            const audioTrack = audioStream.getAudioTracks()[0];
+            canvasStream.addTrack(audioTrack);
+
+            // Set it to the video element
+            const videoElement = document.getElementById('enrollment-video-preview');
+            if (videoElement instanceof HTMLVideoElement) {
+              videoElement.srcObject = canvasStream;
+              videoElement.play().catch(console.error);
+            }
+
+            // Keep video UI visible but show toast about no camera
+            toast({
+              title: 'No camera detected',
+              description: 'Recording with audio only (camera not available).',
+              variant: 'default',
+            });
+
+            setIsCameraReady(true);
+            // Do NOT set to audio-only mode to keep the video element visible
+            // setIsAudioOnlyMode(false);
+
+            return canvasStream;
+          } catch (audioError) {
+            console.error('Error setting up audio-only with black video:', audioError);
+            // Now fall back to complete audio-only as a last resort
+            setIsAudioOnlyMode(true);
+            return startCameraAudioOnly();
+          }
         } else if (
           (error instanceof DOMException && error.name === 'NotAllowedError') ||
           (typeof error === 'object' &&
             error !== null &&
             'name' in error &&
-            error.name === 'PermissionDeniedError')
+            error.name === 'NotAllowedError')
         ) {
-          setPermissionsError(`Camera/microphone access denied. Please grant permission.`);
+          toast({
+            title: 'Permission denied',
+            description: 'You need to allow access to your camera and microphone.',
+            variant: 'destructive',
+          });
         } else {
-          setPermissionsError(`Error accessing camera/microphone: ${errorMessage}`);
+          toast({
+            title: 'Camera error',
+            description: `Could not access camera: ${errorMessage}`,
+            variant: 'destructive',
+          });
         }
+
+        // Return null if we couldn't get a stream due to an error
+        return null;
       }
-    } catch (error: unknown) {
-      console.error('Unexpected error:', error);
+    } catch (e) {
+      console.error('Unexpected error in startCamera:', e);
       toast({
-        title: 'Error',
-        description: 'An unexpected error occurred. Please try again.',
+        title: 'Camera error',
+        description: 'An unexpected error occurred while setting up the camera.',
         variant: 'destructive',
       });
+      return null;
     }
   };
 
-  // Update the startRecording function to properly handle duration timing
-  const startRecording = () => {
-    if (!recordingStream) {
-      toast({
-        title: 'Camera not ready',
-        description: 'Please start the camera first',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const mimeType = 'video/webm;codecs=vp8,opus';
-      const recorder = new MediaRecorder(recordingStream, { mimeType });
-
-      recorder.addEventListener('dataavailable', (event) => {
-        if (event.data.size > 0) {
-          recordingChunks.current.push(event.data);
-        }
-      });
-
-      recorder.addEventListener('start', () => {
-        setIsRecording(true);
-
-        // Reset duration timer
-        setRecordingDuration(0);
-        const startTime = Date.now();
-
-        // Clear any existing timer
-        if (durationTimerRef.current) {
-          clearInterval(durationTimerRef.current);
-        }
-
-        // Set up duration timer - use fixed start time, don't rely on state
-        durationTimerRef.current = setInterval(() => {
-          const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          setRecordingDuration(elapsed);
-        }, 1000);
-
-        // Start animation for audio-only mode
-        if (isAudioOnlyMode && canvasRef.current) {
-          drawAudioWaveform(canvasRef.current);
-        }
-      });
-
-      recorder.addEventListener('stop', () => {
-        setIsRecording(false);
-
-        // Clear duration timer
-        if (durationTimerRef.current) {
-          clearInterval(durationTimerRef.current);
-          durationTimerRef.current = null;
-        }
-
-        // Finalize recording
-        const blob = new Blob(recordingChunks.current, { type: mimeType });
-        setVideoBlob(blob);
-
-        // Display the recorded video with proper typing
-        const videoElement = document.getElementById('enrollment-video-preview');
-        if (videoElement instanceof HTMLVideoElement) {
-          const url = URL.createObjectURL(blob);
-          videoElement.srcObject = null;
-          videoElement.src = url;
-          videoElement.controls = true;
-
-          // Store the enrollment in form data
-          form.setValue('voiceEnrollmentComplete', true);
-        }
-      });
-
-      setMediaRecorder(recorder);
-
-      // Start recording with small slices for more frequent dataavailable events
-      recorder.start(1000); // 1 second chunks
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      toast({
-        title: 'Recording failed',
-        description: 'Failed to start recording. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  // Update the stopRecording function to ensure clean timer cleanup
-  const stopRecording = () => {
-    // Cancel animation frame
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-
-    // Clear the duration timer first
-    if (durationTimerRef.current) {
-      clearInterval(durationTimerRef.current);
-      durationTimerRef.current = null;
-    }
-
-    // Then stop the media recorder
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      try {
-        mediaRecorder.stop();
-      } catch (error) {
-        console.error('Error stopping recorder:', error);
-      }
-    }
-  };
-
-  // Update the uploadVoiceEnrollment function to manage loading state
-  const uploadVoiceEnrollment = async (videoBlob: Blob) => {
+  // Modified to return the S3 URL instead of creating enrollment
+  const uploadVoiceEnrollment = async (
+    videoBlob: Blob,
+  ): Promise<{ url: string; duration: number } | null> => {
     setIsUploading(true);
 
     try {
-      // Create a FormData object to send the video file
+      console.log('Starting voice enrollment upload, blob size:', videoBlob.size);
+
+      // Create FormData with the video and metadata
       const formData = new FormData();
+      formData.append('file', videoBlob, 'enrollment.webm');
+      formData.append('duration', String(recordingDuration));
+      formData.append('isAudioOnly', isAudioOnlyMode ? 'true' : 'false');
+      formData.append('tempUpload', 'true'); // Mark this as a temporary upload
 
-      // Create a File object from the Blob
-      const videoFile = new File([videoBlob], `enrollment-${Date.now()}.webm`, {
-        type: videoBlob.type,
-      });
+      console.log('FormData created, sending to API...');
 
-      // Add the video file to the FormData
-      formData.append('video', videoFile);
-
-      // Send the FormData to the API endpoint
-      const response = await fetch('/api/voice-enrollment', {
+      // Temporary upload that just returns the S3 URL without creating voice enrollment record
+      const response = await fetch('/api/voice-enrollment/temp-upload', {
         method: 'POST',
         body: formData,
       });
 
-      // Check if the request was successful
+      console.log('API response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload voice enrollment');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.log('Voice enrollment API error:', errorData);
+
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      // Parse the response data
       const data = await response.json();
+      console.log('Voice enrollment uploaded to S3:', data);
 
-      // Return the response data
-      return data;
+      // Mark voice enrollment as complete in form state
+      form.setValue('voiceEnrollmentComplete', true);
+      form.setValue('voiceEnrollmentVideoUrl', data.videoUrl);
+      form.setValue('voiceEnrollmentDuration', recordingDuration);
+
+      // Return the URL and duration for further processing
+      return {
+        url: data.videoUrl,
+        duration: recordingDuration,
+      };
     } catch (error) {
       console.error('Error uploading voice enrollment:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to upload voice enrollment. Please try again.',
+        title: 'Voice Enrollment Failed',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Could not upload voice recording. Please try again.',
         variant: 'destructive',
       });
       return null;
@@ -627,65 +642,125 @@ export const SignUpFormV2 = ({
     }
   };
 
+  // Handle recording button click in the VOICE_ENROLLMENT step
+  const handleRecordingClick = async () => {
+    if (isRecording) {
+      // Stop recording logic...
+      if (mediaRecorder) {
+        console.log('Stopping recording');
+        mediaRecorder.stop();
+        setIsRecording(false);
+
+        // Clear the timer
+        if (durationTimerRef.current) {
+          clearInterval(durationTimerRef.current);
+          durationTimerRef.current = null;
+        }
+      }
+    } else {
+      // Start recording logic...
+
+      // Initialize the recording stream if not already set
+      let streamToUse: MediaStream | null = null;
+
+      if (isAudioOnlyMode) {
+        streamToUse = await startCameraAudioOnly();
+      } else {
+        streamToUse = await startCamera();
+      }
+
+      if (!streamToUse) {
+        console.error('Failed to get stream');
+        return;
+      }
+
+      setIsRecording(true);
+      setRecordingStream(streamToUse);
+
+      // Set the recording start time
+      const startTime = Date.now();
+      setRecordingStartTime(startTime);
+
+      // Setup media recorder with the stream
+      const recorder = setupMediaRecorder(streamToUse);
+
+      if (recorder) {
+        setMediaRecorder(recorder);
+        recorder.start();
+        console.log('Recording started');
+      } else {
+        console.error('Failed to create media recorder');
+        setIsRecording(false);
+      }
+    }
+  };
+
+  // Update the stopRecording function to be more direct
+  const stopRecording = () => {
+    console.log('Stopping recording...');
+
+    // Clear animation if active
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    // Clear timer
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+
+    // Stop the media recorder
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+
+    // Clean up video resources
+    cleanupVideoRecording();
+
+    // Set state to not recording
+    setIsRecording(false);
+  };
+
+  // Fix for 'any' type on line 843
   const onFormSubmit = async ({
     name,
     email,
     password,
     signature,
     url,
-    voiceEnrollmentComplete,
+    voiceEnrollmentVideoUrl,
+    voiceEnrollmentDuration,
   }: TSignUpFormV2Schema) => {
     try {
-      // Only send the fields that the API endpoint expects
+      analytics.capture('App: User Sign Up', { email });
+
       await signup({
         name,
         email,
         password,
         signature,
         url,
+        voiceEnrollmentVideoUrl,
+        voiceEnrollmentDuration,
       });
 
-      // If voice enrollment was completed, we could track it here
-      if (voiceEnrollmentComplete) {
-        analytics.capture('App: Voice Enrollment Completed', {
-          email,
-        });
-      }
+      setForm({
+        ...form,
+        step: 'CLAIM_USERNAME',
+      });
+    } catch (error) {
+      console.error('Error in sign up:', error);
 
-      router.push(`/unverified-account`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred during sign up';
 
       toast({
-        title: _(msg`Registration Successful`),
-        description: _(
-          msg`You have successfully registered. Please verify your account by clicking on the link you received in the email.`,
-        ),
-        duration: 5000,
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
       });
-
-      analytics.capture('App: User Sign Up', {
-        name: name,
-        email: email,
-      });
-    } catch (err) {
-      const error = AppError.parseError(err);
-
-      const errorMessage = signupErrorMessages[error.code] ?? signupErrorMessages.INVALID_REQUEST;
-
-      if (
-        error.code === AppErrorCode.PROFILE_URL_TAKEN ||
-        error.code === AppErrorCode.PREMIUM_PROFILE_URL
-      ) {
-        form.setError('url', {
-          type: 'manual',
-          message: _(errorMessage),
-        });
-      } else {
-        toast({
-          title: _(msg`An error occurred`),
-          description: _(errorMessage),
-          variant: 'destructive',
-        });
-      }
     }
   };
 
@@ -823,7 +898,9 @@ export const SignUpFormV2 = ({
 
   // Add a function to format time properly
   const formatTime = (seconds: number): string => {
-    if (seconds <= 0) return '0:00';
+    if (isNaN(seconds) || seconds < 0) {
+      return '0:00';
+    }
 
     // Handle extremely large values (defensive programming)
     if (seconds > 86400) {
@@ -836,6 +913,104 @@ export const SignUpFormV2 = ({
 
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
+
+  // Handle upload click in the VOICE_ENROLLMENT step
+  const handleUploadClick = async () => {
+    if (!videoBlob) {
+      toast({
+        title: 'No recording',
+        description: 'Please record your voice first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Upload the video
+      const result = await uploadVoiceEnrollment(videoBlob);
+
+      if (result) {
+        toast({
+          title: 'Success',
+          description: 'Voice enrollment successfully recorded',
+        });
+
+        // Move to next step after successful upload
+        setStep('CLAIM_USERNAME');
+      }
+    } catch (error) {
+      console.error('Error during upload:', error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Could not upload recording. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Add right before the return statement of the component, or at the end of the component setup
+  useEffect(() => {
+    // When we have a video blob in audio-only mode, add a basic audio player UI
+    if (videoBlob && isAudioOnlyMode) {
+      const videoElement = document.getElementById('enrollment-video-preview') as HTMLVideoElement;
+      if (videoElement) {
+        // Make sure video is visible and canvas is hidden for playback
+        videoElement.style.display = 'block';
+        const canvas = document.getElementById('audio-canvas') as HTMLCanvasElement;
+        if (canvas) {
+          canvas.style.display = 'none';
+        }
+
+        // Add a simple playback indicator
+        videoElement.addEventListener('play', () => {
+          console.log('Audio playback started');
+        });
+
+        videoElement.addEventListener('pause', () => {
+          console.log('Audio playback paused');
+        });
+      }
+    }
+  }, [videoBlob, isAudioOnlyMode]);
+
+  // Fix for 'any' type on line 901
+  const onError = (error: Error | unknown) => {
+    console.error('Error during sign up:', error);
+    toast({
+      title: 'An error occurred',
+      description: error instanceof Error ? error.message : 'Unknown error during sign up',
+      variant: 'destructive',
+    });
+  };
+
+  useEffect(() => {
+    // Start audio visualization when recording
+    if (isRecording && !isAudioOnlyMode && canvasRef.current) {
+      const videoElement = document.getElementById('enrollment-video-preview') as HTMLVideoElement;
+      const canvasElement = canvasRef.current;
+
+      if (!canvasElement) return;
+
+      const animateVideo = () => {
+        if (!videoElement.paused && !videoElement.ended) {
+          const context = canvasElement.getContext('2d');
+
+          if (!context) return;
+
+          context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+          animationFrameRef.current = requestAnimationFrame(animateVideo);
+        }
+      };
+
+      animationFrameRef.current = requestAnimationFrame(animateVideo);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isRecording, isAudioOnlyMode, mediaRecorder, recordingStream]);
 
   return (
     <div className={cn('flex justify-center gap-x-12', className)}>
@@ -1065,7 +1240,7 @@ export const SignUpFormV2 = ({
             )}
 
             {step === 'VOICE_ENROLLMENT' && (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 overflow-y-auto">
                 {/* Debug mode banner */}
                 {isDebugMode && (
                   <div
@@ -1081,10 +1256,10 @@ export const SignUpFormV2 = ({
                 )}
 
                 <fieldset
-                  className="flex h-[550px] w-full flex-col gap-y-4"
+                  className="flex w-full flex-col gap-y-4 overflow-y-auto"
                   disabled={isSubmitting}
                 >
-                  <div className="flex h-full flex-col items-center justify-center">
+                  <div className="flex flex-col items-center justify-center">
                     <div className="border-border w-full max-w-md rounded-md border bg-neutral-50 p-6">
                       <h3 className="mb-4 text-lg font-medium">
                         <Trans>Voice Enrollment</Trans>
@@ -1100,14 +1275,41 @@ export const SignUpFormV2 = ({
 
                       <div className="flex flex-col gap-4 p-3">
                         <div className="flex flex-col items-center space-y-4">
-                          <div className="bg-muted aspect-video w-full overflow-hidden rounded-lg">
+                          <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-lg">
+                            {/* Always show the video element - our black video stream will work with it */}
                             <video
                               id="enrollment-video-preview"
                               className="h-full w-full object-cover"
                               autoPlay
-                              muted
+                              muted={!videoBlob}
                               playsInline
+                              controls={!!videoBlob}
                             ></video>
+
+                            {/* Only show the canvas for waveform visualization alongside the video if in audio-only mode */}
+                            {isAudioOnlyMode && !videoBlob && (
+                              <canvas
+                                id="audio-canvas"
+                                className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-70"
+                                width="640"
+                                height="360"
+                              ></canvas>
+                            )}
+
+                            {/* Add a prominent timer display */}
+                            {isRecording && (
+                              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+                                <div className="flex flex-col items-center justify-center rounded-full bg-black/70 p-4 text-white">
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-3 w-3 animate-pulse rounded-full bg-red-500"></div>
+                                    <span className="text-xs uppercase">Recording</span>
+                                  </div>
+                                  <span className="text-4xl font-bold">
+                                    {formatTime(recordingDuration)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex w-full justify-between p-3">
@@ -1117,7 +1319,18 @@ export const SignUpFormV2 = ({
                                   size="sm"
                                   variant="secondary"
                                   type="button"
-                                  onClick={startCamera}
+                                  onClick={async () => {
+                                    // Reset any recording state
+                                    setVideoBlob(null);
+                                    setRecordingDuration(0);
+                                    cleanupVideoRecording();
+
+                                    if (isAudioOnlyMode) {
+                                      await startCameraAudioOnly();
+                                    } else {
+                                      await startCamera();
+                                    }
+                                  }}
                                   disabled={isRecording}
                                 >
                                   <Trans>
@@ -1125,22 +1338,25 @@ export const SignUpFormV2 = ({
                                   </Trans>
                                 </Button>
 
-                                {recordingStream && (
-                                  <Button
-                                    size="sm"
-                                    type="button"
-                                    variant={isRecording ? 'destructive' : 'default'}
-                                    onClick={isRecording ? stopRecording : startRecording}
-                                  >
-                                    {isRecording ? (
-                                      <>
-                                        <Trans>Stop</Trans> ({formatTime(recordingDuration)})
-                                      </>
-                                    ) : (
-                                      <Trans>{isAudioOnlyMode ? 'Record Audio' : 'Record'}</Trans>
-                                    )}
-                                  </Button>
-                                )}
+                                {/* Always show the Record/Stop button */}
+                                <Button
+                                  size="sm"
+                                  type="button"
+                                  variant={isRecording ? 'destructive' : 'default'}
+                                  onClick={handleRecordingClick}
+                                  className={
+                                    isRecording ? 'animate-pulse bg-red-500 text-white' : ''
+                                  }
+                                >
+                                  {isRecording ? (
+                                    <>
+                                      <div className="mr-2 h-2 w-2 rounded-full bg-white"></div>
+                                      <Trans>Stop</Trans> ({formatTime(recordingDuration)})
+                                    </>
+                                  ) : (
+                                    <Trans>{isAudioOnlyMode ? 'Record Audio' : 'Record'}</Trans>
+                                  )}
+                                </Button>
                               </>
                             ) : (
                               <>
@@ -1148,9 +1364,32 @@ export const SignUpFormV2 = ({
                                   size="sm"
                                   variant="secondary"
                                   type="button"
-                                  onClick={startCamera}
+                                  onClick={handleRecordingClick}
                                 >
                                   <Trans>Retake</Trans>
+                                </Button>
+
+                                {/* Add Replay button */}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  type="button"
+                                  onClick={() => {
+                                    // Find the video element
+                                    const videoElement = document.getElementById(
+                                      'enrollment-video-preview',
+                                    ) as HTMLVideoElement;
+                                    if (videoElement) {
+                                      // Reset to beginning if already playing
+                                      if (!videoElement.paused) {
+                                        videoElement.pause();
+                                      }
+                                      videoElement.currentTime = 0;
+                                      videoElement.play().catch(console.error);
+                                    }
+                                  }}
+                                >
+                                  <Trans>Replay</Trans>
                                 </Button>
 
                                 <Button
@@ -1158,20 +1397,7 @@ export const SignUpFormV2 = ({
                                   type="button"
                                   variant="default"
                                   disabled={isUploading}
-                                  onClick={async () => {
-                                    // Set the form value to indicate the enrollment is complete
-                                    form.setValue('voiceEnrollmentComplete', true);
-
-                                    // Upload the video recording to the server
-                                    const result = await uploadVoiceEnrollment(videoBlob);
-
-                                    if (result) {
-                                      toast({
-                                        title: 'Success',
-                                        description: 'Voice enrollment successfully recorded',
-                                      });
-                                    }
-                                  }}
+                                  onClick={handleUploadClick}
                                 >
                                   {isUploading ? (
                                     <Trans>Uploading...</Trans>
@@ -1189,9 +1415,9 @@ export const SignUpFormV2 = ({
                               className="relative mt-2 w-full rounded border border-blue-400 bg-blue-100 px-4 py-2 text-sm text-blue-700"
                               role="alert"
                             >
-                              <strong className="font-bold">Audio-Only Mode: </strong>
+                              <strong className="font-bold">Camera not detected: </strong>
                               <span className="block sm:inline">
-                                No camera detected. Recording audio with black screen video.
+                                Recording with audio only. A black screen will appear in the video.
                               </span>
                             </div>
                           )}
