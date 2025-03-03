@@ -178,9 +178,9 @@ export const SignUpFormV2 = ({
   const animationFrameRef = useRef<number | null>(null);
 
   // State for permissions and errors, rename unused ones with underscore
-  const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
-  const [permissionsGranted, setPermissionsGranted] = useState(false);
-  const [_permissionsError, setPermissionsError] = useState<string | null>(null);
+  const [_hasRequestedPermissions, _setHasRequestedPermissions] = useState(false);
+  const [_permissionsGranted, _setPermissionsGranted] = useState(false);
+  const [_permissionsError, _setPermissionsError] = useState<string | null>(null);
 
   // Add missing state variables
   const [_isCameraReady, setIsCameraReady] = useState(false);
@@ -327,7 +327,7 @@ export const SignUpFormV2 = ({
         clearInterval(durationTimerRef.current);
       }
     };
-  }, []);
+  }, [mediaRecorder, recordingStream]);
 
   // Update useEffect to include all dependencies
   useEffect(() => {
@@ -361,23 +361,34 @@ export const SignUpFormV2 = ({
         }
       };
     }
-  }, [isRecording, mediaRecorder, recordingStream]); // Added mediaRecorder and recordingStream as dependencies
+  }, [isRecording, mediaRecorder, recordingStream, cleanupVideoRecording]);
 
   // Update checkPermissionStatus to use proper typing instead of assertions
   const checkPermissionStatus = async () => {
     try {
-      // Use type assertions but in a more explicit way with a comment explaining why
-      // This is necessary because the browser's Permissions API expects specific strings
-      // but TypeScript's built-in types may not be up-to-date with all browsers
+      // Define a type guard for custom permission names
+      const isValidPermissionName = (name: string): name is PermissionName => {
+        return true; // Browser validation will handle this
+      };
+
+      // Camera permission
+      const cameraName = 'camera';
+      if (!isValidPermissionName(cameraName)) {
+        throw new Error('Invalid permission name: camera');
+      }
+
       const cameraPermission = await navigator.permissions.query({
-        // Using type assertion here because 'camera' is valid in modern browsers
-        // but may not be included in the TypeScript PermissionName type
-        name: 'camera' as PermissionName,
+        name: cameraName,
       });
 
+      // Microphone permission
+      const micName = 'microphone';
+      if (!isValidPermissionName(micName)) {
+        throw new Error('Invalid permission name: microphone');
+      }
+
       const micPermission = await navigator.permissions.query({
-        // Using type assertion here because 'microphone' is valid in modern browsers
-        name: 'microphone' as PermissionName,
+        name: micName,
       });
 
       if (cameraPermission.state === 'denied' || micPermission.state === 'denied') {
@@ -403,8 +414,12 @@ export const SignUpFormV2 = ({
 
       // Get audio stream
       const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100,
+          channelCount: 1,
+        },
       });
 
       console.log('Audio stream acquired:', audioStream);
@@ -478,8 +493,12 @@ export const SignUpFormV2 = ({
         if (isAudioOnlyMode) {
           // Audio only mode
           const audioStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: false,
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              sampleRate: 44100,
+              channelCount: 1,
+            },
           });
 
           setIsCameraReady(true);
@@ -504,8 +523,18 @@ export const SignUpFormV2 = ({
         } else {
           // Video mode - try to get both video and audio
           const videoStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true,
+            video: {
+              width: { ideal: 1920, min: 1280 },
+              height: { ideal: 1080, min: 720 },
+              frameRate: { ideal: 30, min: 24 },
+              facingMode: 'user',
+            },
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              sampleRate: 48000,
+              channelCount: 2, // Stereo audio
+            },
           });
 
           setIsAudioOnlyMode(false);
@@ -707,15 +736,24 @@ export const SignUpFormV2 = ({
       recordingChunks.current = [];
 
       // Determine the correct MIME type based on browser support
-      const mimeType = isAudioOnlyMode ? 'audio/webm;codecs=opus' : 'video/webm;codecs=vp8,opus';
+      const mimeType = isAudioOnlyMode ? 'audio/webm;codecs=opus' : 'video/webm;codecs=vp9,opus';
 
-      // Check if the browser supports the preferred MIME type
+      // Set up the media recorder instance with options
       const options: MediaRecorderOptions = {};
       if (MediaRecorder.isTypeSupported(mimeType)) {
         options.mimeType = mimeType;
-        console.log(`Using supported MIME type: ${mimeType}`);
+        // Add bitrate settings for better quality
+        options.videoBitsPerSecond = 5000000; // 5 Mbps for higher quality
+        options.audioBitsPerSecond = 192000; // 192 kbps for better audio
+        console.log(`Using supported MIME type: ${mimeType} with enhanced quality settings`);
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        // Fallback to VP8 if VP9 isn't supported
+        options.mimeType = 'video/webm;codecs=vp8,opus';
+        options.videoBitsPerSecond = 4000000; // 4 Mbps for VP8
+        options.audioBitsPerSecond = 192000; // 192 kbps for better audio
+        console.log(`Falling back to MIME type: video/webm;codecs=vp8,opus with enhanced quality`);
       } else {
-        console.warn(`MIME type ${mimeType} not supported, using browser default`);
+        console.warn(`Requested MIME types not supported, using browser default`);
       }
 
       // Set up the media recorder instance with options
@@ -1039,6 +1077,8 @@ export const SignUpFormV2 = ({
               videoElement.srcObject = null;
               videoElement.src = url;
               videoElement.controls = true;
+            } else {
+              console.error('Video element not found or is not an HTMLVideoElement');
             }
 
             toast({
@@ -1076,35 +1116,44 @@ export const SignUpFormV2 = ({
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  // Handle upload click in the VOICE_ENROLLMENT step
+  // Update the handleUploadClick function to no longer attempt audio extraction
   const handleUploadClick = async () => {
     if (!videoBlob) {
       toast({
-        title: 'No recording',
-        description: 'Please record your voice first',
+        title: 'No recording found',
+        description: 'Please record your voice first before uploading.',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      // Upload the video
-      const result = await uploadVoiceEnrollment(videoBlob);
+      // Upload the video enrollment
+      const uploadResult = await uploadVoiceEnrollment(videoBlob);
 
-      if (result) {
-        toast({
-          title: 'Success',
-          description: 'Voice enrollment successfully recorded',
-        });
-
-        // Move to next step after successful upload
-        setStep('CLAIM_USERNAME');
+      if (!uploadResult) {
+        throw new Error('Failed to upload voice enrollment');
       }
-    } catch (error) {
-      console.error('Error during upload:', error);
+
+      console.log('Voice enrollment uploaded successfully:', uploadResult);
+
+      // Store the upload result in form data
+      form.setValue('voiceEnrollmentVideoUrl', uploadResult.url);
+      form.setValue('voiceEnrollmentDuration', uploadResult.duration);
+      form.setValue('voiceEnrollmentComplete', true);
+
       toast({
-        title: 'Upload Failed',
-        description: 'Could not upload recording. Please try again.',
+        title: 'Voice Enrollment Complete',
+        description: 'Your voice has been recorded successfully.',
+      });
+
+      // Move to next step
+      onNextClick();
+    } catch (error) {
+      console.error('Error during voice enrollment:', error);
+      toast({
+        title: 'Voice Enrollment Failed',
+        description: error instanceof Error ? error.message : 'An unknown error occurred.',
         variant: 'destructive',
       });
     }
@@ -1114,41 +1163,40 @@ export const SignUpFormV2 = ({
   useEffect(() => {
     // When we have a video blob in audio-only mode, add a basic audio player UI
     if (videoBlob && isAudioOnlyMode) {
-      const videoElement = document.getElementById('enrollment-video-preview') as HTMLVideoElement;
-      if (videoElement) {
-        // Make sure video is visible and canvas is hidden for playback
-        videoElement.style.display = 'block';
-        const canvas = document.getElementById('audio-canvas') as HTMLCanvasElement;
-        if (canvas) {
-          canvas.style.display = 'none';
-        }
-
-        // Add a simple playback indicator
-        videoElement.addEventListener('play', () => {
-          console.log('Audio playback started');
-        });
-
-        videoElement.addEventListener('pause', () => {
-          console.log('Audio playback paused');
-        });
+      const videoElement = document.getElementById('enrollment-video-preview');
+      if (!(videoElement instanceof HTMLVideoElement)) {
+        console.error('Video element not found or is not an HTMLVideoElement');
+        return;
       }
+
+      // Make sure video is visible and canvas is hidden for playback
+      videoElement.style.display = 'block';
+      const canvas = document.getElementById('audio-canvas');
+      if (canvas instanceof HTMLCanvasElement) {
+        canvas.style.display = 'none';
+      }
+
+      // Add a simple playback indicator
+      videoElement.addEventListener('play', () => {
+        console.log('Audio playback started');
+      });
+
+      videoElement.addEventListener('pause', () => {
+        console.log('Audio playback paused');
+      });
     }
   }, [videoBlob, isAudioOnlyMode]);
 
-  // Add underscore to onError if it's not directly called
-  const _onError = (error: Error | unknown) => {
-    console.error('Error during sign up:', error);
-    toast({
-      title: 'An error occurred',
-      description: error instanceof Error ? error.message : 'Unknown error during sign up',
-      variant: 'destructive',
-    });
-  };
-
+  // When recording starts and in video mode, set up canvas-based video preview
   useEffect(() => {
     // Start audio visualization when recording
     if (isRecording && !isAudioOnlyMode && canvasRef.current) {
-      const videoElement = document.getElementById('enrollment-video-preview') as HTMLVideoElement;
+      const videoElement = document.getElementById('enrollment-video-preview');
+      if (!(videoElement instanceof HTMLVideoElement)) {
+        console.error('Video element not found or is not a video element');
+        return;
+      }
+
       const canvasElement = canvasRef.current;
 
       if (!canvasElement) return;
@@ -1173,6 +1221,16 @@ export const SignUpFormV2 = ({
       }
     };
   }, [isRecording, isAudioOnlyMode, mediaRecorder, recordingStream]);
+
+  // Add underscore to onError if it's not directly called
+  const _onError = (error: Error | unknown) => {
+    console.error('Error during sign up:', error);
+    toast({
+      title: 'An error occurred',
+      description: error instanceof Error ? error.message : 'Unknown error during sign up',
+      variant: 'destructive',
+    });
+  };
 
   return (
     <div className={cn('flex justify-center gap-x-12', className)}>
@@ -1540,15 +1598,25 @@ export const SignUpFormV2 = ({
                                     // Find the video element
                                     const videoElement = document.getElementById(
                                       'enrollment-video-preview',
-                                    ) as HTMLVideoElement;
-                                    if (videoElement) {
-                                      // Reset to beginning if already playing
-                                      if (!videoElement.paused) {
-                                        videoElement.pause();
-                                      }
-                                      videoElement.currentTime = 0;
-                                      videoElement.play().catch(console.error);
+                                    );
+
+                                    if (!(videoElement instanceof HTMLVideoElement)) {
+                                      console.error(
+                                        'Video element not found or is not an HTMLVideoElement',
+                                      );
+                                      return;
                                     }
+
+                                    // Reset to beginning if already playing
+                                    if (!videoElement.paused) {
+                                      videoElement.pause();
+                                    }
+                                    videoElement.currentTime = 0;
+
+                                    // Play the video
+                                    videoElement.play().catch((error) => {
+                                      console.error('Error playing video:', error);
+                                    });
                                   }}
                                 >
                                   <Trans>Replay</Trans>

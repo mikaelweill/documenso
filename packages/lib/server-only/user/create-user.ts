@@ -2,6 +2,7 @@ import { hash } from '@node-rs/bcrypt';
 
 import { getStripeCustomerByUser } from '@documenso/ee/server-only/stripe/get-customer';
 import { updateSubscriptionItemQuantity } from '@documenso/ee/server-only/stripe/update-subscription-item-quantity';
+import { jobsClient } from '@documenso/lib/jobs/client';
 import { prisma } from '@documenso/prisma';
 import { IdentityProvider, TeamMemberInviteStatus } from '@documenso/prisma/client';
 
@@ -70,12 +71,8 @@ export const createUser = async ({
   // Create voice enrollment if video URL is provided
   if (voiceEnrollmentVideoUrl) {
     try {
-      // Import prisma dynamically to avoid circular dependencies
-      // so we handle potential import and runtime errors gracefully
-      const { prisma } = await import('@documenso/prisma');
-
       // Create voice enrollment record
-      await prisma.voiceEnrollment.create({
+      const enrollment = await prisma.voiceEnrollment.create({
         data: {
           userId: user.id,
           videoUrl: voiceEnrollmentVideoUrl,
@@ -86,6 +83,21 @@ export const createUser = async ({
       });
 
       console.log(`Voice enrollment created for user ${user.id}`);
+
+      // Queue audio extraction job
+      try {
+        await jobsClient.triggerJob({
+          name: 'internal.extract-audio',
+          payload: {
+            enrollmentId: enrollment.id,
+          },
+        });
+
+        console.log(`Audio extraction job queued for enrollment ${enrollment.id}`);
+      } catch (error) {
+        console.error('Failed to queue audio extraction job:', error);
+        // Non-critical error, continue with user creation
+      }
     } catch (error) {
       console.error('Failed to create voice enrollment:', error);
       // Non-critical error, continue with user creation

@@ -41,11 +41,11 @@ export const VideoRecorder = ({
   const [videoData, setVideoData] = useState<VideoRecorderDataFormat | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [permissionDenied, setPermissionDenied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isCameraReady, _setIsCameraReady] = useState(false);
+  const [_isInitializing, setIsInitializing] = useState(false);
+  const [_permissionDenied, setPermissionDenied] = useState(false);
+  const [_error, setError] = useState<string | null>(null);
+  const [_isInitialized, setIsInitialized] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const previewRef = useRef<HTMLVideoElement | null>(null);
@@ -93,8 +93,16 @@ export const VideoRecorder = ({
 
       try {
         const videoStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100,
+          },
         });
 
         setStream(videoStream);
@@ -138,7 +146,11 @@ export const VideoRecorder = ({
       const mimeType = 'video/webm;codecs=vp8,opus';
       console.log(`📹 Using media recorder with MIME type: ${mimeType}`);
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 2500000, // 2.5 Mbps for better quality
+        audioBitsPerSecond: 128000, // 128 kbps audio
+      });
       setRecorder(mediaRecorder);
 
       mediaRecorder.addEventListener('dataavailable', (event) => {
