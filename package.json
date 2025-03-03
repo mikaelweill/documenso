@@ -66,6 +66,8 @@
     "packages/*"
   ],
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@documenso/pdf-sign": "^0.1.0",
     "@documenso/prisma": "^0.0.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
