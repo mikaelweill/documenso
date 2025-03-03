@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { Check, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 import { Button } from '@documenso/ui/primitives/button';
@@ -20,16 +21,18 @@ import type { VideoRecorderDataFormat } from '@documenso/ui/primitives/voice-enr
 import { VideoRecorder } from '@documenso/ui/primitives/voice-enrollment/video-recorder';
 
 export default function VoiceEnrollmentPage() {
-  const { data: session, status } = useSession();
+  const { data: _session } = useSession();
   const { toast } = useToast();
-  const router = useRouter();
+  const _router = useRouter();
 
-  const [isRecording, setIsRecording] = useState(false);
+  const [_isRecording, _setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [recordingData, setRecordingData] = useState<{ videoBlob: Blob; duration: number } | null>(
-    null,
-  );
+  const [recordingData, setRecordingData] = useState<VideoRecorderDataFormat | null>(null);
   const [enrollmentComplete, setEnrollmentComplete] = useState(false);
+  const [processingStep, setProcessingStep] = useState<
+    'idle' | 'uploading' | 'extracting' | 'creating_profile' | 'complete'
+  >('idle');
+  const [processingMessage, setProcessingMessage] = useState('');
 
   const uploadVoiceEnrollment = async () => {
     if (!recordingData) {
@@ -42,6 +45,8 @@ export default function VoiceEnrollmentPage() {
     }
 
     setIsUploading(true);
+    setProcessingStep('uploading');
+    setProcessingMessage('Uploading your voice enrollment...');
 
     try {
       console.log('Starting voice enrollment upload, blob size:', recordingData.videoBlob.size);
@@ -54,7 +59,7 @@ export default function VoiceEnrollmentPage() {
 
       console.log('FormData created, sending to API...');
 
-      // Include credentials to ensure cookies are sent
+      // Include credentials to ensure session cookies are sent
       const response = await fetch('/api/voice-enrollment', {
         method: 'POST',
         body: formData,
@@ -87,12 +92,8 @@ export default function VoiceEnrollmentPage() {
 
       // If we got an enrollment ID, we can proceed with audio extraction
       if (data.enrollmentId) {
-        setEnrollmentComplete(true);
-
-        toast({
-          title: 'Voice enrollment complete',
-          description: 'Your voice has been successfully recorded for verification.',
-        });
+        setProcessingStep('extracting');
+        setProcessingMessage('Processing your voice sample...');
 
         // Optionally extract audio (can be a separate step)
         try {
@@ -105,8 +106,25 @@ export default function VoiceEnrollmentPage() {
 
           if (extractResponse.ok) {
             console.log('Audio extraction initiated successfully');
+            const extractData = await extractResponse.json();
+
+            if (extractData.success && extractData.readyForProfile) {
+              setProcessingStep('creating_profile');
+              setProcessingMessage('Creating your voice profile...');
+
+              // The audio extraction endpoint now automatically triggers profile creation,
+              // but we can still show the user the progress
+              setProcessingStep('complete');
+              setEnrollmentComplete(true);
+
+              toast({
+                title: 'Voice enrollment complete',
+                description: 'Your voice has been successfully enrolled for verification.',
+              });
+            }
           } else {
             console.error('Audio extraction failed:', await extractResponse.json());
+            // ... existing error handling ...
           }
         } catch (extractError) {
           console.error('Error during audio extraction:', extractError);
@@ -134,7 +152,7 @@ export default function VoiceEnrollmentPage() {
   };
 
   // If not authenticated, show sign-in message
-  if (status === 'unauthenticated') {
+  if (_session === null) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col px-4 py-8">
         <Card>
@@ -157,7 +175,7 @@ export default function VoiceEnrollmentPage() {
   }
 
   // If still loading session, show loading
-  if (status === 'loading') {
+  if (_session === undefined) {
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col px-4 py-8">
         <Card>
@@ -182,9 +200,13 @@ export default function VoiceEnrollmentPage() {
           <CardHeader>
             <CardTitle className="text-center">Voice Enrollment Complete</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col items-center space-y-4">
+            <div className="bg-primary/10 text-primary flex h-20 w-20 items-center justify-center rounded-full">
+              <Check className="h-10 w-10" />
+            </div>
             <p className="text-muted-foreground text-center">
-              Your voice has been successfully enrolled.
+              Your voice has been successfully enrolled and your voice profile has been created. You
+              can now use voice verification when signing documents.
             </p>
           </CardContent>
           <CardFooter className="flex justify-center">
@@ -192,6 +214,42 @@ export default function VoiceEnrollmentPage() {
               <Link href="/dashboard">Go to Dashboard</Link>
             </Button>
           </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  // If processing but not complete yet, show loading state
+  if (isUploading && !enrollmentComplete) {
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-center">Processing Voice Enrollment</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center space-y-4">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center">
+              <Loader2 className="text-primary h-10 w-10 animate-spin" />
+            </div>
+            <p className="text-muted-foreground text-center">{processingMessage}</p>
+            <div className="w-full max-w-xs">
+              <div className="bg-muted-foreground/20 h-2 w-full rounded-full">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-500"
+                  style={{
+                    width:
+                      processingStep === 'uploading'
+                        ? '33%'
+                        : processingStep === 'extracting'
+                          ? '66%'
+                          : processingStep === 'creating_profile'
+                            ? '90%'
+                            : '100%',
+                  }}
+                />
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
     );
@@ -205,7 +263,8 @@ export default function VoiceEnrollmentPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground mb-4 text-center">
-            Record your voice to enable voice verification when signing documents.
+            Record your voice to enable voice verification when signing documents. For accurate
+            verification, please speak for at least 20 seconds.
           </p>
 
           <VideoRecorder
@@ -226,6 +285,10 @@ export default function VoiceEnrollmentPage() {
 
           <p className="text-muted-foreground text-center text-xs">
             By completing voice enrollment, you agree to Documenso's voice data processing terms.
+            <br />
+            <span className="mt-2 inline-block font-medium">
+              For accurate verification, please speak for at least 20 seconds.
+            </span>
           </p>
         </CardFooter>
       </Card>

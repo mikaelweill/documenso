@@ -1296,7 +1296,7 @@ export const SignUpFormV2 = ({
             <p className="text-muted-foreground text-sm">
               <Trans>
                 Record a short video for voice verification. This is optional and helps secure your
-                account.
+                account. For accurate verification, please speak for at least 20 seconds.
               </Trans>
             </p>
           </div>
@@ -1656,7 +1656,10 @@ export const SignUpFormV2 = ({
                         <div className="text-muted-foreground text-sm">
                           <Trans>
                             This step is optional. Voice enrollment helps secure your account with
-                            biometric verification.
+                            biometric verification.{' '}
+                            <span className="mt-1 block font-medium">
+                              For accurate verification, please speak for at least 20 seconds.
+                            </span>
                           </Trans>
                         </div>
 

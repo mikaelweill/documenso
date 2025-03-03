@@ -815,6 +815,7 @@ model VoiceEnrollment {
   // Voice pattern data (extracted features for verification)
   voicePatternData Bytes?  @db.ByteA
   voiceProfileId   String? // ID from voice verification API
+  profileData      Json?   // Stores API-specific profile data from external services
 
   // Status tracking
   isProcessed      Boolean @default(false)

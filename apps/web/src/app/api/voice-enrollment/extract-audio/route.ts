@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import ffmpeg from 'fluent-ffmpeg';
-import { createWriteStream, promises as fs } from 'fs';
+import { createWriteStream } from 'fs';
+import fs from 'fs/promises';
 import { getServerSession } from 'next-auth';
 import fetch from 'node-fetch';
 import { tmpdir } from 'os';
@@ -12,6 +13,9 @@ import path from 'path';
 import { NEXT_AUTH_OPTIONS } from '@documenso/lib/next-auth/auth-options';
 import { uploadToS3 } from '@documenso/lib/server-only/storage/s3-storage';
 import { prisma } from '@documenso/prisma';
+
+// Constants
+const _INTERNAL_API_URL = process.env.NEXT_PRIVATE_INTERNAL_WEBAPP_URL || 'http://localhost:3000';
 
 // Configure ffmpeg to use the installed version
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
@@ -71,10 +75,12 @@ async function extractAudio(videoPath: string, audioPath: string): Promise<void>
     ffmpeg(videoPath)
       .output(audioPath)
       .noVideo()
-      .audioCodec('libmp3lame')
-      .audioBitrate('128k')
+      .audioCodec('pcm_s16le') // 16-bit PCM (required by Azure)
+      .audioChannels(1) // Mono (required by Azure)
+      .audioFrequency(16000) // 16kHz sample rate (required by Azure)
+      .format('wav') // WAV format (required by Azure)
       .on('end', () => {
-        console.log('Audio extraction complete');
+        console.log('Audio extraction complete - WAV format for Azure compatibility');
         resolve();
       })
       .on('error', (err: Error) => {
@@ -98,7 +104,7 @@ async function getFileSize(filePath: string): Promise<string> {
 }
 
 /**
- * Update the updateEnrollmentWithAudioUrl function to properly handle the database update
+ * Update the enrollment record with the audio URL without creating a profile
  */
 async function updateEnrollmentWithAudioUrl(
   enrollmentId: string,
@@ -106,34 +112,34 @@ async function updateEnrollmentWithAudioUrl(
   error?: string,
 ): Promise<void> {
   try {
-    const updatedEnrollment = await prisma.voiceEnrollment.update({
-      where: {
-        id: enrollmentId,
-      },
+    // Update the enrollment record with the audio URL
+    await prisma.voiceEnrollment.update({
+      where: { id: enrollmentId },
       data: {
         audioUrl,
-        processingStatus: error ? 'ERROR' : 'COMPLETED',
-        processingError: error || null,
-        isProcessed: true,
+        processingStatus: error ? 'ERROR' : 'AUDIO_EXTRACTED',
+        processingError: error,
+        isProcessed: !error,
         updatedAt: new Date(),
       },
     });
 
-    console.log('Updated enrollment with audio URL:', {
-      id: updatedEnrollment.id,
-      audioUrl: updatedEnrollment.audioUrl,
-      status: updatedEnrollment.processingStatus,
-    });
-  } catch (dbError) {
-    console.error('Error updating enrollment record:', dbError);
-    throw new Error('Failed to update enrollment record with audio URL');
+    console.log(`Updated enrollment ${enrollmentId} with audio URL: ${audioUrl}`);
+    console.log(
+      'Audio extraction successful, profile creation will be done later after user logs in',
+    );
+
+    // No profile creation - this will be done when user clicks the profile creation button
+  } catch (error) {
+    console.error(`Error updating enrollment ${enrollmentId}:`, error);
+    throw error;
   }
 }
 
 /**
  * Handles extraction of audio from a voice enrollment video using ffmpeg
  */
-export const POST = async (req: NextRequest) => {
+export async function POST(req: NextRequest) {
   try {
     // Authorize the request
     const session = await getServerSession(NEXT_AUTH_OPTIONS);
@@ -209,7 +215,7 @@ export const POST = async (req: NextRequest) => {
     // Create temp directory paths for processing
     const tempDir = await fs.mkdtemp(path.join(tmpdir(), 'voice-enrollment-'));
     const videoFilename = `video-${Date.now()}.webm`;
-    const audioFilename = `audio-${Date.now()}.mp3`;
+    const audioFilename = `audio-${Date.now()}.wav`;
     const videoPath = path.join(tempDir, videoFilename);
     const audioPath = path.join(tempDir, audioFilename);
 
@@ -235,8 +241,8 @@ export const POST = async (req: NextRequest) => {
       // Upload the audio to S3
       const s3AudioUrl = await uploadToS3(
         audioBuffer,
-        'audio/mp3',
-        `audio-${Date.now()}.mp3`,
+        'audio/wav',
+        `audio-${Date.now()}.wav`,
         'voice-audio',
       );
 
@@ -248,15 +254,16 @@ export const POST = async (req: NextRequest) => {
       }
 
       // Clean up temp files
-      await fs.unlink(videoPath).catch(console.error);
-      await fs.unlink(audioPath).catch(console.error);
-      await fs.rmdir(tempDir).catch(console.error);
+      await fs.unlink(videoPath);
+      await fs.unlink(audioPath);
+      await fs.rmdir(tempDir);
 
       return NextResponse.json({
         success: true,
-        message: 'Audio extraction completed successfully',
+        message: 'Audio extracted successfully',
         audioUrl: s3AudioUrl,
-        audioSize: audioSize,
+        enrollmentId: enrollmentId,
+        readyForProfile: true,
       });
     } catch (processingError) {
       // Clean up temp files if they exist
@@ -284,4 +291,4 @@ export const POST = async (req: NextRequest) => {
       { status: 500 },
     );
   }
-};
+}

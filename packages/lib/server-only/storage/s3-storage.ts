@@ -5,6 +5,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { Readable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 
 // FIXME: The following environment variables should be added to turbo.json:
@@ -80,7 +81,8 @@ export async function uploadToS3(
     return fileUrl;
   } catch (error) {
     console.error('Error uploading to S3:', error);
-    throw new Error(`Failed to upload to S3: ${(error as Error).message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to upload to S3: ${errorMessage}`);
   }
 }
 
@@ -202,4 +204,62 @@ function formatBytes(bytes: number, decimals: number = 2): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+/**
+ * Directly download a file from S3 using the SDK
+ * This is more reliable for server-to-server operations since it doesn't use presigned URLs
+ * @param key - The key (path) of the object in S3
+ * @returns A buffer containing the file data
+ */
+export async function downloadFileFromS3(key: string): Promise<Buffer> {
+  try {
+    console.log(`Directly downloading S3 file: ${key}`);
+
+    const command = new GetObjectCommand({
+      Bucket: S3_BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    if (!response.Body) {
+      throw new Error('No response body from S3');
+    }
+
+    // Ensure the response body is a Readable stream
+    if (!isReadableStream(response.Body)) {
+      throw new Error('S3 response body is not a readable stream');
+    }
+
+    const stream = response.Body;
+
+    return new Promise<Buffer>((resolve, reject) => {
+      const chunks: Uint8Array[] = [];
+      stream.on('data', (chunk: Uint8Array) => chunks.push(chunk));
+      stream.on('error', (err: Error) => reject(err));
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+  } catch (error) {
+    console.error('Error downloading file from S3:', error);
+    if (error instanceof Error) {
+      throw new Error(`S3 download failed: ${error.message}`);
+    }
+    throw new Error('S3 download failed with unknown error');
+  }
+}
+
+// Helper function to check if an object is a Readable stream
+function isReadableStream(obj: unknown): obj is Readable {
+  if (!obj || typeof obj !== 'object') {
+    return false;
+  }
+
+  // Use safer property access with 'in' operator
+  return (
+    'pipe' in obj &&
+    typeof obj['pipe'] === 'function' &&
+    'on' in obj &&
+    typeof obj['on'] === 'function'
+  );
 }

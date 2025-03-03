@@ -48,6 +48,9 @@ export default async function ProfileSettingsPage() {
           videoUrl={voiceEnrollment?.videoUrl}
           audioUrl={voiceEnrollment?.audioUrl}
           duration={voiceEnrollment?.videoDuration}
+          enrollmentId={voiceEnrollment?.id}
+          voiceProfileId={voiceEnrollment?.voiceProfileId}
+          processingStatus={voiceEnrollment?.processingStatus}
         />
       </div>
 

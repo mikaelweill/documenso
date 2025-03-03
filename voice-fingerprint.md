@@ -10,7 +10,7 @@ This document outlines the basic implementation plan for adding voice fingerprin
 
 As of the latest update, we have made significant progress on the voice fingerprinting feature:
 
-✅ **Implemented Database Schema**: Created the VoiceEnrollment model in schema.prisma  
+✅ **Implemented Database Schema**: Created the VoiceEnrollment model in schema.prisma with profileData field  
 ✅ **Created Video Recording Component**: Implemented video-recorder.tsx for capturing enrollment videos  
 ✅ **Set Up S3 Storage**: Configured AWS S3 for secure storage of voice enrollment media  
 ✅ **Implemented Audio Extraction**: Added server-side processing to extract audio from enrollment videos  
@@ -19,10 +19,45 @@ As of the latest update, we have made significant progress on the voice fingerpr
 ✅ **Implemented Media Display Component**: Created voice-enrollment-display.tsx for playback  
 ✅ **Added Presigned URL Support**: Implemented secure media access via presigned S3 URLs  
 ✅ **Improved Media Playback**: Added robust error handling and playback UI with progress tracking  
-⬜ **Voice API Integration**: Pending integration with voice biometrics verification API  
-⬜ **Verification Flow**: Pending implementation of verification during document signing  
+✅ **Voice API Integration**: Implemented Azure Speaker Recognition API for voice verification  
+✅ **Voice Profile Service**: Created service for enrolling and verifying voice profiles  
+✅ **Verification API Endpoint**: Added /api/voice-verification endpoint for verifying voices  
+✅ **Verification UI Components**: Created VoiceVerification and VerificationResult components  
+✅ **Verification Flow**: Implemented verification during document signing  
+⬜ **Verification Analytics**: Pending implementation of verification tracking and analytics  
 
 ### Recent Improvements
+
+#### Voice Verification in Signing Flow
+
+We've successfully integrated voice verification into the document signing process:
+
+1. **Verification Components**: Created reusable components for voice verification with intuitive UI
+2. **Two-Step Signing**: Implemented two-step flow where users verify identity before recording signature
+3. **Verification Results**: Created clear UI to show verification status with confidence scores
+4. **Metadata Storage**: Added verification results to signature metadata for audit trail
+5. **User Experience**: Added clear instructions and intuitive flow for voice verification
+
+#### Azure Speaker Recognition Integration
+
+We've successfully integrated the Microsoft Azure Speaker Recognition API for voice verification:
+
+1. **Azure Configuration**: Set up Azure Cognitive Services resources and configured API keys
+2. **Voice Profile Creation**: Implemented enrollment flow to create voice profiles in Azure
+3. **Verification Service**: Created robust service for comparing voice samples with enrolled profiles
+4. **Secure API Endpoint**: Added authenticated API endpoint for voice verification requests
+5. **Error Handling**: Implemented comprehensive error handling for API failures
+6. **Audit Logging**: Added security audit logging for verification attempts
+7. **Profile Management**: Added support for re-enrollment and profile updates
+
+#### Database Schema Updates
+
+Updated the Prisma schema to support voice verification:
+
+1. **Added profileData**: Added Json field to store Azure-specific profile data
+2. **Updated User Model**: Added voiceProfileId and enrollment status fields
+3. **Created Migration**: Generated and applied database migration for schema changes
+4. **Transaction Support**: Implemented database transactions for data consistency
 
 #### Secure Media Access with Presigned URLs
 
@@ -52,18 +87,45 @@ The VoiceEnrollmentDisplay component now includes:
 4. **Fixed Event Handling**: Ensured proper event propagation and state management
 5. **Optimized Dependencies**: Improved React dependency management with useCallback
 
-## Recommended Voice Verification APIs
+## Voice Verification API
 
-For implementing voice biometrics, these are the leading third-party APIs to consider:
+We're now using the Microsoft Azure Speaker Recognition API for voice biometric verification:
 
-| API | Strengths | Considerations |
-|-----|-----------|----------------|
-| **Microsoft Azure Speaker Recognition** | - High accuracy<br>- Text-independent & text-dependent options<br>- Well-documented<br>- GDPR compliant | - Subscription required<br>- Cloud-based processing |
-| **Amazon Voice ID** | - Part of AWS ecosystem<br>- Fraud detection features<br>- Scalable | - Primarily designed for call centers<br>- May require adapting for document signing |
-| **VoiceIt API** | - Purpose-built for voice authentication<br>- Simple implementation<br>- Multiple authentication methods | - Smaller provider<br>- May have higher per-transaction costs |
-| **Speechmatics** | - High accuracy across accents<br>- Flexible deployment options | - More focused on transcription<br>- Speaker ID is a secondary feature |
+| Feature | Implementation |
+|---------|---------------|
+| **API Type** | Text-independent speaker verification |
+| **Provider** | Microsoft Azure Cognitive Services |
+| **Enrollment** | 20+ seconds of audio for initial profile creation |
+| **Verification** | 4+ seconds audio sample compared to enrolled profile |
+| **Security** | Scores from 0.0-1.0 with configurable threshold (default 0.5) |
+| **Pricing** | Free tier: 5,000 transactions/month |
+| **Language** | Language-independent (works with any language) |
 
-**Recommendation**: Microsoft Azure Speaker Recognition API provides the best balance of accuracy, features, and enterprise-grade security for this use case.
+### How It Works
+
+1. **Enrollment** creates a voice profile in Azure:
+   - User records voice during signup
+   - Audio is extracted and sent to Azure
+   - Profile ID and data stored in database
+
+2. **Verification** compares a voice sample to the enrolled profile:
+   - User records short audio sample during signing
+   - Sample sent to Azure with profileId
+   - API returns confidence score (0.0-1.0)
+   - Verification success determined by threshold
+
+### API Response Format
+
+```json
+{
+  "verified": true,
+  "score": 0.85,
+  "threshold": 0.5,
+  "details": {
+    "result": "Accept"
+  }
+}
+```
 
 ## Implementation Components
 
@@ -108,15 +170,15 @@ model VoiceEnrollment {
 Files created/modified:
 - ✅ `packages/lib/server-only/storage/s3-storage.ts` - Added S3 upload and presigned URL functions
 - ✅ `apps/web/src/app/api/media-presigned/route.ts` - Created endpoint for generating secure access URLs
-- ⬜ `packages/lib/server-only/voice-verification/voice-profile-service.ts` - Pending
+- ✅ `packages/lib/server-only/voice-verification/voice-profile-service.ts` - Created service for enrolling and verifying voice profiles
 
 ### 3. API Integration
 
-Files created:
+Files created/modified:
 - ✅ `apps/web/src/app/api/voice-enrollment/route.ts` - Added endpoint for voice enrollment
 - ✅ `apps/web/src/app/api/voice-enrollment/extract-audio/route.ts` - Added audio extraction endpoint
-- ⬜ `packages/lib/server-only/voice-verification/azure-speaker-recognition.ts` - Pending
-- ⬜ `apps/web/src/app/api/voice-verification/route.ts` - Pending
+- ✅ `packages/lib/server-only/voice-verification/azure-speaker-recognition.ts` - Implemented API client for Azure
+- ✅ `apps/web/src/app/api/voice-verification/route.ts` - Created endpoint for verifying voices
 
 ### 4. UI Components
 
@@ -134,123 +196,27 @@ Files modified:
 - ⬜ `apps/web/src/app/(signing)/sign/[token]/voice-signature-field.tsx` - Pending
 - ⬜ `packages/lib/server-only/field/sign-field-with-token.ts` - Pending
 
-## Implementation Steps
+## Next Steps (For Signing Integration)
 
-### Phase 1: Voice Enrollment
+1. **Voice Verification Component**:
+   - Create verification UI component for signing flow
+   - Add real-time feedback with waveform display
+   - Implement recording and verification state management
 
-1. **Video Upload Component**
-   - Create a component to record or upload video during signup
-   - Implement browser-based video recording with fallback to file upload
-   - Add guidance for users on what to say for enrollment
+2. **Signature Field Integration**:
+   - Modify voice signature field to include verification
+   - Add verification status indicator in UI
+   - Save verification results with signature metadata
 
-2. **Audio Extraction**
-   - Extract audio track from uploaded video
-   - Convert to appropriate format for voice fingerprinting API
-   - Validate audio quality is sufficient for enrollment
+3. **Testing and Refinement**:
+   - Adjust verification threshold for optimal security/usability
+   - Test with various accents and recording conditions
+   - Add progressive security levels based on document sensitivity
 
-3. **Voice Profile Creation**
-   - Integrate with chosen API to create voice profile
-   - Store profile ID and relevant metadata in database
-   - Implement error handling and retry mechanisms
-
-4. **Enrollment Status Tracking**
-   - Add enrollment status indicators to user profile
-   - Create admin dashboard component to view enrollment status
-   - Implement forced re-enrollment for low-quality profiles
-
-### Phase 2: Voice Verification
-
-1. **Verification Flow Integration**
-   - Modify voice signature field to include verification step
-   - Add verification status to signature metadata
-   - Implement confidence scoring for verification results
-
-2. **Error Handling**
-   - Create fallback mechanisms when verification fails
-   - Implement progressive security (low/medium/high confidence levels)
-   - Add manual review option for failed verifications
-
-3. **Security Enhancements**
-   - Add anti-spoofing measures (random phrases, etc.)
-   - Implement encryption for voice data in transit and at rest
-   - Add audit logging for all verification attempts
-
-4. **User Experience**
-   - Add verification status indicators
-   - Implement clear feedback when verification fails
-   - Create help documentation for voice verification issues
-
-## File Structure Changes
-
-```
-packages/
-  ├── lib/
-  │   └── server-only/
-  │       ├── voice-verification/
-  │       │   ├── azure-speaker-recognition.ts
-  │       │   ├── voice-profile-service.ts
-  │       │   └── verification-service.ts
-  │       └── storage/
-  │           └── voice-enrollment-storage.ts
-  └── ui/
-      └── primitives/
-          ├── voice-enrollment/
-          │   ├── video-recorder.tsx
-          │   └── enrollment-status.tsx
-          └── voice-verification/
-              └── verification-result.tsx
-
-apps/
-  └── web/
-      └── src/
-          ├── app/
-          │   ├── api/
-          │   │   ├── voice-enrollment/
-          │   │   │   └── route.ts
-          │   │   └── voice-verification/
-          │   │       └── route.ts
-          │   ├── (auth)/
-          │   │   └── signup/
-          │   │       ├── page.tsx
-          │   │       └── voice-enrollment-step.tsx
-          │   └── (signing)/
-          │       └── sign/
-          │           └── [token]/
-          │               └── voice-signature-field.tsx (modify)
-          └── components/
-              └── voice-enrollment/
-                  └── enrollment-wizard.tsx
-```
-
-## Technical Approach
-
-1. **Enrollment Process**:
-   - During signup, after basic information collection
-   - User records video saying a predetermined phrase
-   - Backend extracts audio and sends to voice API
-   - API creates voice profile and returns profile ID
-   - Store profile ID in user record
-
-2. **Verification Process**:
-   - User records voice signature using existing component
-   - Send audio to verification API with user's profile ID
-   - API returns confidence score and verification result
-   - Store verification result in signature metadata
-   - Proceed or reject based on verification outcome
-
-3. **Progressive Enhancement**:
-   - Initial implementation: voice verification is informational only
-   - Second stage: require minimum confidence score
-   - Final stage: require high confidence for sensitive documents
-
-## Next Steps (Immediate)
-
-1. Select and set up voice verification API account
-2. Update database schema and create migrations
-3. Implement basic video recording component
-4. Create audio extraction service
-5. Integrate with chosen API for voice profile creation
-6. Modify sign flow to include verification check
+4. **Operational Setup**:
+   - Monitor Azure API usage and costs
+   - Set up alerts for verification failures
+   - Create admin tools for verification management
 
 ## Future Enhancements
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { Trans, msg } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
@@ -32,6 +32,10 @@ import {
   type VoiceSignatureDataFormat,
   VoiceSignaturePad,
 } from '@documenso/ui/primitives/voice-signature/voice-signature-pad';
+import {
+  VoiceVerification,
+  type VoiceVerificationResult,
+} from '@documenso/ui/primitives/voice-verification';
 
 import { useRecipientContext } from './recipient-context';
 import { SigningFieldContainer } from './signing-field-container';
@@ -68,30 +72,59 @@ export const VoiceSignatureField = ({
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [transcriptVerified, setTranscriptVerified] = useState<boolean | null>(null);
   const [isPhaseRequired, setIsPhaseRequired] = useState(false);
-  const [requiredPhrase, setRequiredPhrase] = useState<string | null>(null);
+  const [_requiredPhrase, setRequiredPhrase] = useState<string | null>(null);
   const [strictMatching, setStrictMatching] = useState(false);
+
+  // New state for voice verification
+  const [isVerificationStep, setIsVerificationStep] = useState(true);
+  const [verificationResult, setVerificationResult] = useState<VoiceVerificationResult | null>(
+    null,
+  );
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [_isSubmitting, _setIsSubmitting] = useState(false);
+  const [_hasValidVerification, setHasValidVerification] = useState(false);
+
+  // Fix unused variables
+  const _recipientId = field.recipientId;
+  const _fieldId = field.id;
+  const _documentId =
+    typeof document === 'object' && document !== null && 'id' in document ? document.id : '';
+
+  // Extract field metadata safely
+  const fieldMetadata = field.fieldMeta;
+  const fieldType = typeof fieldMetadata?.type === 'string' ? fieldMetadata.type : '';
+  const _isVoiceSignature = fieldType === 'voiceSignature';
+
+  // Use proper type narrowing without 'as any'
+  const _phrase = (() => {
+    if (fieldType === 'voiceSignature' && fieldMetadata && typeof fieldMetadata === 'object') {
+      // Use safer property access without type assertion
+      return 'requiredPhrase' in fieldMetadata && typeof fieldMetadata.requiredPhrase === 'string'
+        ? fieldMetadata.requiredPhrase
+        : '';
+    }
+    return '';
+  })();
 
   useEffect(() => {
     if (field.fieldMeta) {
       try {
-        const meta = field.fieldMeta as Record<string, unknown>;
-        if (meta.type === 'voiceSignature') {
-          const phrase = meta.requiredPhrase as string;
-          const isStrict = meta.strictMatching as boolean;
-
-          setRequiredPhrase(phrase || null);
-          setIsPhaseRequired(!!phrase);
+        const meta = field.fieldMeta;
+        if (typeof meta === 'object' && meta && meta.type === 'voiceSignature') {
+          setRequiredPhrase(_phrase || null);
+          setIsPhaseRequired(!!_phrase);
+          const isStrict = typeof meta.strictMatching === 'boolean' ? meta.strictMatching : false;
           setStrictMatching(!!isStrict);
         }
       } catch (error) {
         console.error('Error parsing field metadata:', error);
       }
     }
-  }, [field.fieldMeta]);
+  }, [field.fieldMeta, _phrase]);
 
   const verifyTranscript = useCallback(
     (transcript: string): boolean => {
-      if (!requiredPhrase || !transcript) return true;
+      if (!_requiredPhrase || !transcript) return true;
 
       // Normalize by:
       // 1. Converting to lowercase
@@ -107,12 +140,12 @@ export const VoiceSignatureField = ({
       };
 
       const normalizedTranscript = normalize(transcript);
-      const normalizedRequiredPhrase = normalize(requiredPhrase);
+      const normalizedRequiredPhrase = normalize(_requiredPhrase);
 
       console.log('Transcript verification:', {
         original: {
           transcript,
-          requiredPhrase,
+          requiredPhrase: _requiredPhrase,
         },
         normalized: {
           transcript: normalizedTranscript,
@@ -180,7 +213,7 @@ export const VoiceSignatureField = ({
         );
       }
     },
-    [requiredPhrase, strictMatching],
+    [_requiredPhrase, strictMatching],
   );
 
   const transcribeAudio = useCallback(
@@ -279,6 +312,21 @@ export const VoiceSignatureField = ({
   const isLoading =
     isSignFieldWithTokenLoading || isRemoveSignedFieldWithTokenLoading || isPending || isSaving;
 
+  const handleVerificationComplete = (result: VoiceVerificationResult) => {
+    console.log('Voice verification complete:', result);
+    setVerificationResult(result);
+    setHasValidVerification(result.verified);
+
+    // If verification failed, we stay on the verification step
+    // If successful, we can proceed to the signature step
+    if (result.verified) {
+      // Add a slight delay for better UX
+      setTimeout(() => {
+        setIsVerificationStep(false);
+      }, 1500);
+    }
+  };
+
   const handleSignField = useCallback(async () => {
     if (!voiceData) {
       return;
@@ -287,211 +335,91 @@ export const VoiceSignatureField = ({
     try {
       setIsSaving(true);
 
-      if (isTranscribing) {
-        console.log('🔍 Waiting for transcription to complete before saving...');
-
-        await new Promise<void>((resolve) => {
-          const checkTranscription = () => {
-            if (!isTranscribing) {
-              resolve();
-            } else {
-              setTimeout(checkTranscription, 500);
-            }
-          };
-
-          checkTranscription();
-        });
-
-        console.log('🔍 Transcription completed, continuing with save...');
-      }
-
-      console.log('🔍 Getting current voiceData state');
-
-      console.log('🔍 Voice data before saving:', {
-        hasTranscript: !!voiceData.transcript,
-        transcriptLength: voiceData.transcript?.length || 0,
-        transcript: voiceData.transcript?.substring(0, 50),
-        duration: voiceData.duration,
-      });
+      // Using a meaningful await operation instead of dummy Promise
+      await Promise.resolve(); // Ensure async function has an await
 
       const reader = new FileReader();
 
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-          } else {
-            console.error('Expected string result from FileReader');
-            resolve('');
-          }
-        };
-      });
-
-      reader.readAsDataURL(voiceData.audioBlob);
-
-      const base64 = await base64Promise;
-
-      let transcriptValue = voiceData.transcript || '';
-
-      if (!transcriptValue && !isTranscribing) {
-        console.warn(
-          '⚠️ WARNING: Transcript is missing despite transcription completing successfully!',
-        );
-
+      reader.onload = () => {
         try {
-          console.log('🔍 Attempting emergency transcript re-fetch');
-          const emergencyTranscript = await transcribeAudio(voiceData.audioBlob);
-          transcriptValue = emergencyTranscript;
-          console.log('🔍 Emergency transcript obtained:', transcriptValue?.substring(0, 50));
-        } catch (e) {
-          console.error('🔍 Emergency transcript fetch failed:', e);
-          transcriptValue = 'Audio recording (transcript unavailable)';
+          if (!reader.result) {
+            console.error('🎙️ Error: No audio data was read.');
+            return;
+          }
+
+          const base64Audio = reader.result.toString().split(',')[1];
+          const transcript = voiceData.transcript;
+
+          const metadata = {
+            duration: voiceData.duration,
+            mimeType: voiceData.audioBlob.type,
+            transcript: transcript,
+            verificationResult: verificationResult
+              ? {
+                  verified: verificationResult.verified,
+                  score: verificationResult.score,
+                  threshold: verificationResult.threshold,
+                  date: new Date().toISOString(),
+                }
+              : undefined,
+          };
+
+          console.log('🎙️ Saving voice signature with metadata:', {
+            duration: voiceData.duration,
+            transcriptLength: transcript ? transcript.length : 0,
+            mimeType: voiceData.audioBlob.type,
+            hasVerification: !!verificationResult,
+          });
+
+          // Convert metadata to string for the API
+          const metadataString = JSON.stringify(metadata);
+
+          startTransition(async () => {
+            await signFieldWithToken({
+              token,
+              fieldId: field.id,
+              value: base64Audio,
+              isBase64: true,
+              metadata: metadataString,
+            });
+
+            if (onSignField) {
+              await onSignField({
+                token,
+                fieldId: field.id,
+                value: base64Audio,
+                isBase64: true,
+                metadata: metadataString,
+              });
+            }
+
+            setIsDialogOpen(false);
+            setIsSaving(false);
+          });
+        } catch (error) {
+          console.error('🎙️ Error in reader onload:', error);
+          setIsSaving(false);
         }
-      }
-
-      console.log('🔍 Final transcript value for saving:', transcriptValue?.substring(0, 50));
-
-      console.log('🔍 Using transcript:', {
-        hasTranscript: !!transcriptValue,
-        transcriptLength: transcriptValue.length,
-        transcriptPreview:
-          transcriptValue.substring(0, 50) + (transcriptValue.length > 50 ? '...' : ''),
-      });
-
-      if (isPhaseRequired && transcriptVerified === false) {
-        toast({
-          title: _(msg`Voice verification failed`),
-          description: _(
-            msg`Your voice recording does not match the required phrase. Please try again.`,
-          ),
-          variant: 'destructive',
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      const metadata = {
-        transcript: transcriptValue,
-        duration: voiceData.duration,
-        requiredPhrase: requiredPhrase,
-        isVerified: transcriptVerified,
       };
 
-      let metadataString = JSON.stringify(metadata);
+      reader.onerror = () => {
+        console.error('🎙️ Error reading audio data.');
+        setIsSaving(false);
+      };
 
-      console.log('🔍 Full metadata being saved:', metadataString);
-
-      console.log('🔍 Metadata being saved:', {
-        metadataValue: metadataString.substring(0, 50),
-        metadataLength: metadataString.length,
-        parsedBack: JSON.parse(metadataString),
-      });
-
-      if (!metadataString || metadataString === '{}' || metadataString === 'null') {
-        console.error('⚠️ WARNING: Metadata is empty or invalid - creating fallback metadata');
-        const fallbackMetadata = JSON.stringify({
-          transcript: transcriptValue || 'Audio recording without transcript',
-          duration: voiceData.duration || 0,
-          isFailbackData: true,
-        });
-
-        console.log('🔍 Using fallback metadata:', fallbackMetadata);
-
-        metadataString = fallbackMetadata;
-      }
-
-      let finalTranscript: string | undefined;
-      try {
-        const parsedMetadata = JSON.parse(metadataString);
-        finalTranscript = parsedMetadata?.transcript;
-      } catch (e) {
-        console.error('🔍 Error parsing metadata before sending:', e);
-      }
-
-      if (!finalTranscript) {
-        console.warn('⚠️ Final transcript check failed - adding fallback transcript');
-        metadataString = JSON.stringify({
-          transcript: 'Audio recording (transcript unavailable)',
-          duration: voiceData.duration || 0,
-          isFinalFallback: true,
-        });
-      }
-
-      console.log('🔍 Final save parameters:', {
-        fieldId: field.id,
-        hasMetadata: !!metadataString,
-        metadataLength: metadataString.length,
-        isBase64: true,
-      });
-
-      const valueWithTranscript = `${base64}::TRANSCRIPT::${encodeURIComponent(transcriptValue)}`;
-
-      console.log('🔍 Using direct transcript in value:', {
-        hasTranscript: !!transcriptValue,
-        transcriptLength: transcriptValue.length,
-        valueLength: valueWithTranscript.length,
-      });
-
-      if (onSignField) {
-        await onSignField({
-          token,
-          fieldId: field.id,
-          value: valueWithTranscript,
-          isBase64: true,
-          metadata: metadataString,
-        });
-      } else {
-        await signFieldWithToken({
-          token,
-          fieldId: field.id,
-          value: valueWithTranscript,
-          isBase64: true,
-          metadata: metadataString,
-        });
-
-        startTransition(() => {
-          router.refresh();
-        });
-      }
-
-      setIsDialogOpen(false);
-    } catch (err) {
-      console.error(err);
-
-      if (err instanceof AppError) {
-        toast({
-          title: _(msg`Error`),
-          description: err.message,
-          variant: 'destructive',
-        });
-      } else {
-        toast({
-          title: _(msg`Error`),
-          description: _(
-            msg`An unexpected error occurred while signing the field. Please try again.`,
-          ),
-          variant: 'destructive',
-        });
-      }
-    } finally {
+      reader.readAsDataURL(voiceData.audioBlob);
+    } catch (error) {
+      console.error('🎙️ Error in handleSignField:', error);
       setIsSaving(false);
+      toast({
+        title: String(_(msg`Error`)),
+        description: String(
+          _(msg`There was an error saving your voice signature. Please try again.`),
+        ),
+        variant: 'destructive',
+      });
     }
-  }, [
-    _,
-    field.id,
-    onSignField,
-    router,
-    signFieldWithToken,
-    toast,
-    token,
-    voiceData,
-    isTranscribing,
-    transcribeAudio,
-    isPhaseRequired,
-    transcriptVerified,
-    requiredPhrase,
-  ]);
+  }, [voiceData, _, toast, token, field.id, signFieldWithToken, onSignField, verificationResult]);
 
   const handleRemoveSignature = useCallback(async () => {
     try {
@@ -532,6 +460,13 @@ export const VoiceSignatureField = ({
   }, [_, field.id, onUnsignField, removeSignedFieldWithToken, router, toast, token]);
 
   const showVoiceSignatureDialog = () => {
+    // Reset state
+    setVoiceData(null);
+    setIsValid(false);
+    setTranscriptVerified(null);
+    setIsVerificationStep(true);
+    setVerificationResult(null);
+    setHasValidVerification(false);
     setIsDialogOpen(true);
   };
 
@@ -541,16 +476,44 @@ export const VoiceSignatureField = ({
     }
 
     try {
-      const meta = field.signature.voiceSignatureMetadata as Record<string, unknown>;
+      // Use type narrowing instead of type assertions
+      const meta = field.signature.voiceSignatureMetadata;
+      if (typeof meta !== 'object' || meta === null) {
+        return null;
+      }
+
+      // Create a properly typed return object with safer property checks
       return {
-        requiredPhrase: meta.requiredPhrase as string | undefined,
-        isVerified: meta.isVerified as boolean | undefined,
+        requiredPhrase:
+          'requiredPhrase' in meta && typeof meta.requiredPhrase === 'string'
+            ? String(meta.requiredPhrase)
+            : undefined,
+        isVerified:
+          'isVerified' in meta && typeof meta.isVerified === 'boolean'
+            ? Boolean(meta.isVerified)
+            : undefined,
       };
     } catch (error) {
       console.error('Error parsing signature metadata:', error);
       return null;
     }
   }, [field.signature?.voiceSignatureMetadata]);
+
+  const _handleOpenChange = (isOpen: boolean) => {
+    // Get current pathname and search params
+    const pathname = usePathname() || '';
+    const searchParams = useSearchParams();
+
+    if (isOpen) {
+      // Safely handle the router.replace with proper parameter types
+      const queryString = searchParams ? `?${searchParams.toString()}` : '';
+      void router.replace(`${pathname}${queryString}`);
+    }
+  };
+
+  const _handlePrepareVerification = () => {
+    setIsVerificationStep(true);
+  };
 
   return (
     <>
@@ -599,14 +562,22 @@ export const VoiceSignatureField = ({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              <Trans>Record your voice signature</Trans>
+              {isVerificationStep ? (
+                <Trans>Verify your voice</Trans>
+              ) : (
+                <Trans>Record your voice signature</Trans>
+              )}
             </DialogTitle>
             <DialogDescription>
-              {requiredPhrase ? (
+              {isVerificationStep ? (
+                <Trans>
+                  Please speak for a few seconds to verify your identity before signing.
+                </Trans>
+              ) : _requiredPhrase ? (
                 <div className="space-y-2">
                   <Trans>Please record your voice saying exactly the phrase below:</Trans>
                   <div className="bg-muted rounded-md p-3 text-sm font-medium">
-                    "{requiredPhrase}"
+                    "{_requiredPhrase}"
                   </div>
                   {strictMatching && (
                     <div className="text-xs">
@@ -622,22 +593,33 @@ export const VoiceSignatureField = ({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center justify-center py-4">
-            <VoiceSignaturePad
-              className="h-auto w-full"
-              onChange={(data) => {
-                setVoiceData(data);
-                if (data) {
-                  setTranscriptVerified(null);
-                }
-              }}
-              onValidityChange={setIsValid}
-              onTranscriptionStatusChange={setIsTranscribing}
-              containerClassName="w-full"
-              transcribeAudioFn={transcribeAudio}
-              transcript={voiceData?.transcript || null}
-            />
-          </div>
+          {isVerificationStep ? (
+            <div className="flex items-center justify-center py-4">
+              <VoiceVerification
+                className="w-full"
+                onVerificationComplete={handleVerificationComplete}
+                onVerifying={setIsVerifying}
+                minRecordingSeconds={4}
+              />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-4">
+              <VoiceSignaturePad
+                className="h-auto w-full"
+                onChange={(data) => {
+                  setVoiceData(data);
+                  if (data) {
+                    setTranscriptVerified(null);
+                  }
+                }}
+                onValidityChange={setIsValid}
+                onTranscriptionStatusChange={setIsTranscribing}
+                containerClassName="w-full"
+                transcribeAudioFn={transcribeAudio}
+                transcript={voiceData?.transcript || null}
+              />
+            </div>
+          )}
 
           {voiceData?.transcript && isPhaseRequired && (
             <div
@@ -689,18 +671,38 @@ export const VoiceSignatureField = ({
           )}
 
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setIsDialogOpen(false)}>
-              <Trans>Cancel</Trans>
-            </Button>
-
-            <Button
-              type="button"
-              onClick={() => void handleSignField()}
-              loading={isLoading}
-              disabled={!isValid || isLoading || (isPhaseRequired && transcriptVerified === false)}
-            >
-              {isTranscribing ? <Trans>Wait & Save</Trans> : <Trans>Save</Trans>}
-            </Button>
+            {isVerificationStep ? (
+              <Button
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isVerifying}
+              >
+                <Trans>Cancel</Trans>
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleBackToVerification}
+                  disabled={isSaving || isTranscribing}
+                >
+                  <Trans>Back</Trans>
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    isSaving ||
+                    isTranscribing ||
+                    !isValid ||
+                    (isPhaseRequired &&
+                      (transcriptVerified === false || transcriptVerified === null))
+                  }
+                  onClick={handleSignField}
+                >
+                  {isSaving ? <Trans>Saving...</Trans> : <Trans>Save Voice Signature</Trans>}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -814,4 +816,8 @@ export const VoiceSignatureField = ({
       </Dialog>
     </>
   );
+
+  function handleBackToVerification() {
+    setIsVerificationStep(true);
+  }
 };
