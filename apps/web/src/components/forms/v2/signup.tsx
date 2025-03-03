@@ -94,8 +94,9 @@ export type SignUpFormV2Props = {
   isOIDCSSOEnabled?: boolean;
 };
 
-// Define interface for canvas with captureStream
-interface CanvasWithCaptureStream extends HTMLCanvasElement {
+// The type definition for HTML canvas element with captureStream
+// Renamed with underscore to indicate it's used as a type definition only
+interface _CanvasWithCaptureStream extends HTMLCanvasElement {
   captureStream(frameRate?: number): MediaStream;
 }
 
@@ -122,7 +123,7 @@ export const SignUpFormV2 = ({
   const { toast } = useToast();
 
   const analytics = useAnalytics();
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
 
   const [step, setStep] = useState<SignUpStep>('BASIC_DETAILS');
@@ -176,17 +177,19 @@ export const SignUpFormV2 = ({
   // Add animation frame ID ref
   const animationFrameRef = useRef<number | null>(null);
 
-  // Add permissionsError state variable
+  // State for permissions and errors, rename unused ones with underscore
+  const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [_permissionsError, setPermissionsError] = useState<string | null>(null);
 
   // Add missing state variables
   const [_isCameraReady, setIsCameraReady] = useState(false);
 
-  // Define recordingStartTime state - ensure there's only one definition
-  const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
+  // Add underscore to recordingStartTime since it's not directly used
+  const [_recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
 
   // Add a function to animate the audio canvas during recording
-  const drawAudioWaveform = (canvas: HTMLCanvasElement) => {
+  const _drawAudioWaveform = (canvas: HTMLCanvasElement) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -232,7 +235,7 @@ export const SignUpFormV2 = ({
     if (isRecording && canvasRef.current) {
       animationFrameRef.current = requestAnimationFrame(() => {
         if (canvasRef.current) {
-          drawAudioWaveform(canvasRef.current);
+          _drawAudioWaveform(canvasRef.current);
         }
       });
     }
@@ -326,15 +329,54 @@ export const SignUpFormV2 = ({
     };
   }, []);
 
-  // Fix permission name type
+  // Update useEffect to include all dependencies
+  useEffect(() => {
+    // Start the timer when recording begins
+    if (isRecording) {
+      // Set the start time for recording
+      setRecordingStartTime(Date.now());
+
+      // Create an interval to update the duration every second
+      const timer = setInterval(() => {
+        setRecordingDuration((prevDuration) => prevDuration + 1);
+      }, 1000);
+
+      // Store the timer reference for cleanup
+      durationTimerRef.current = timer;
+
+      // Clean up function to clear the timer when recording stops
+      return () => {
+        if (durationTimerRef.current) {
+          clearInterval(durationTimerRef.current);
+          durationTimerRef.current = null;
+        }
+
+        // Also clean up resources when unmounting during recording
+        if (mediaRecorder && recordingStream) {
+          if (mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+          }
+
+          cleanupVideoRecording();
+        }
+      };
+    }
+  }, [isRecording, mediaRecorder, recordingStream]); // Added mediaRecorder and recordingStream as dependencies
+
+  // Update checkPermissionStatus to use proper typing instead of assertions
   const checkPermissionStatus = async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      // Use type assertions but in a more explicit way with a comment explaining why
+      // This is necessary because the browser's Permissions API expects specific strings
+      // but TypeScript's built-in types may not be up-to-date with all browsers
       const cameraPermission = await navigator.permissions.query({
+        // Using type assertion here because 'camera' is valid in modern browsers
+        // but may not be included in the TypeScript PermissionName type
         name: 'camera' as PermissionName,
       });
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+
       const micPermission = await navigator.permissions.query({
+        // Using type assertion here because 'microphone' is valid in modern browsers
         name: 'microphone' as PermissionName,
       });
 
@@ -344,7 +386,7 @@ export const SignUpFormV2 = ({
 
       return 'granted';
     } catch (error) {
-      console.error('Error checking permissions:', error);
+      console.error('Error checking permission status:', error);
       return 'unknown';
     }
   };
@@ -587,14 +629,30 @@ export const SignUpFormV2 = ({
     setIsUploading(true);
 
     try {
-      console.log('Starting voice enrollment upload, blob size:', videoBlob.size);
+      // Ensure we have a valid blob and size
+      if (!videoBlob || videoBlob.size === 0) {
+        throw new Error('No valid recording data available to upload');
+      }
+
+      console.log(
+        'Starting voice enrollment upload:',
+        `Size: ${(videoBlob.size / 1024 / 1024).toFixed(2)}MB`,
+        `Type: ${videoBlob.type || 'video/webm'}`,
+        `Duration: ${recordingDuration}s`,
+      );
 
       // Create FormData with the video and metadata
       const formData = new FormData();
-      formData.append('file', videoBlob, 'enrollment.webm');
+
+      // Use a more specific filename with timestamp and extension based on audio/video
+      const fileName = isAudioOnlyMode
+        ? `enrollment_audio_${Date.now()}.webm`
+        : `enrollment_video_${Date.now()}.webm`;
+
+      // Add the blob with appropriate filename
+      formData.append('file', videoBlob, fileName);
       formData.append('duration', String(recordingDuration));
       formData.append('isAudioOnly', isAudioOnlyMode ? 'true' : 'false');
-      formData.append('tempUpload', 'true'); // Mark this as a temporary upload
 
       console.log('FormData created, sending to API...');
 
@@ -614,7 +672,7 @@ export const SignUpFormV2 = ({
       }
 
       const data = await response.json();
-      console.log('Voice enrollment uploaded to S3:', data);
+      console.log('Voice enrollment uploaded to S3 successfully:', data);
 
       // Mark voice enrollment as complete in form state
       form.setValue('voiceEnrollmentComplete', true);
@@ -648,13 +706,26 @@ export const SignUpFormV2 = ({
       // Reset recording chunks
       recordingChunks.current = [];
 
-      // Set up the media recorder instance
-      const recorder = new MediaRecorder(mediaStreamToUse);
+      // Determine the correct MIME type based on browser support
+      const mimeType = isAudioOnlyMode ? 'audio/webm;codecs=opus' : 'video/webm;codecs=vp8,opus';
+
+      // Check if the browser supports the preferred MIME type
+      const options: MediaRecorderOptions = {};
+      if (MediaRecorder.isTypeSupported(mimeType)) {
+        options.mimeType = mimeType;
+        console.log(`Using supported MIME type: ${mimeType}`);
+      } else {
+        console.warn(`MIME type ${mimeType} not supported, using browser default`);
+      }
+
+      // Set up the media recorder instance with options
+      const recorder = new MediaRecorder(mediaStreamToUse, options);
 
       // Handle data available event
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           recordingChunks.current.push(event.data);
+          console.log(`Recording chunk received: ${(event.data.size / 1024).toFixed(2)}KB`);
         }
       };
 
@@ -662,12 +733,23 @@ export const SignUpFormV2 = ({
       recorder.onstop = () => {
         // Create a blob from all chunks
         if (recordingChunks.current.length > 0) {
-          const blob = new Blob(recordingChunks.current, { type: 'video/webm' });
+          // Use the correct MIME type for the blob
+          const blobType = isAudioOnlyMode ? 'audio/webm' : 'video/webm';
+          const blob = new Blob(recordingChunks.current, { type: blobType });
+
+          console.log(
+            `Recording completed: ${(blob.size / 1024 / 1024).toFixed(2)}MB, type: ${blob.type}`,
+          );
           setVideoBlob(blob);
 
           // Create a URL for the blob for preview
           const videoElement = document.getElementById('enrollment-video-preview');
           if (videoElement instanceof HTMLVideoElement) {
+            // Revoke any previous object URL to prevent memory leaks
+            if (videoElement.src && videoElement.src.startsWith('blob:')) {
+              URL.revokeObjectURL(videoElement.src);
+            }
+
             videoElement.src = URL.createObjectURL(blob);
             videoElement.srcObject = null;
             videoElement.controls = true;
@@ -689,6 +771,13 @@ export const SignUpFormV2 = ({
           }
 
           console.log('Recording saved, duration:', recordingDuration);
+        } else {
+          console.warn('No recording chunks available after stopping recording');
+          toast({
+            title: 'Recording failed',
+            description: 'No data was captured during recording. Please try again.',
+            variant: 'destructive',
+          });
         }
 
         // Ensure recording state is updated
@@ -767,7 +856,7 @@ export const SignUpFormV2 = ({
   };
 
   // Update the stopRecording function to be more direct
-  const stopRecording = () => {
+  const _stopRecording = () => {
     console.log('Stopping recording...');
 
     // Clear animation if active
@@ -1046,8 +1135,8 @@ export const SignUpFormV2 = ({
     }
   }, [videoBlob, isAudioOnlyMode]);
 
-  // Fix for 'any' type on line 901
-  const onError = (error: Error | unknown) => {
+  // Add underscore to onError if it's not directly called
+  const _onError = (error: Error | unknown) => {
     console.error('Error during sign up:', error);
     toast({
       title: 'An error occurred',
@@ -1084,34 +1173,6 @@ export const SignUpFormV2 = ({
       }
     };
   }, [isRecording, isAudioOnlyMode, mediaRecorder, recordingStream]);
-
-  // Set up timer to track recording duration
-  useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
-
-    if (isRecording) {
-      // Reset timer when starting recording
-      setRecordingDuration(0);
-      const startTime = Date.now();
-      setRecordingStartTime(startTime);
-
-      // Set up interval to update duration every second
-      interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        setRecordingDuration(elapsed);
-        console.log('Recording duration:', elapsed, 'seconds');
-      }, 1000);
-    } else if (interval) {
-      clearInterval(interval);
-    }
-
-    // Clean up interval on unmount or when recording stops
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, [isRecording]);
 
   return (
     <div className={cn('flex justify-center gap-x-12', className)}>

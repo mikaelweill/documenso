@@ -3,6 +3,18 @@ import { NextResponse } from 'next/server';
 
 import { uploadToS3 } from '@documenso/lib/server-only/storage/s3-storage';
 
+// Custom type guard for file-like objects
+function isFileLike(
+  value: unknown,
+): value is { name?: string; type?: string; arrayBuffer(): Promise<ArrayBuffer> } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'arrayBuffer' in value &&
+    typeof value.arrayBuffer === 'function'
+  );
+}
+
 /**
  * API Route to handle temporary voice enrollment uploads during signup.
  * This endpoint receives a video file, stores it in S3, and returns the URL.
@@ -19,29 +31,38 @@ export const POST = async (req: NextRequest) => {
     const durationStr = formData.get('duration');
     const isAudioOnly = formData.get('isAudioOnly') === 'true';
 
-    console.log('[Temp Upload API] File received:', !!fileEntry, 'Duration:', durationStr);
+    console.log(
+      '[Temp Upload API] File received:',
+      !!fileEntry,
+      'Duration:',
+      durationStr,
+      'Audio only:',
+      isAudioOnly,
+    );
 
-    if (!fileEntry || !(fileEntry instanceof File)) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    // Check if fileEntry exists and has the necessary properties
+    if (!isFileLike(fileEntry)) {
+      return NextResponse.json({ error: 'No valid file uploaded' }, { status: 400 });
     }
 
     // Parse duration (seconds)
     const videoDuration = durationStr ? parseInt(durationStr.toString(), 10) : null;
 
-    const file = fileEntry;
-    const fileName = file.name;
-    const fileType = file.type;
+    // Extract filename and type safely
+    const fileName = fileEntry.name ?? `upload-${Date.now()}`;
+    const fileType = fileEntry.type ?? (isAudioOnly ? 'audio/webm' : 'video/webm');
 
     console.log('[Temp Upload API] File name:', fileName, 'Type:', fileType);
 
     // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
+    const arrayBuffer = await fileEntry.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     console.log('[Temp Upload API] File converted to buffer, size:', buffer.length);
 
     // Generate a unique filename for S3
-    const uniqueFileName = `temp_${Date.now()}.${fileType.split('/')[1] || 'webm'}`;
+    const fileExtension = fileType.split('/')[1] || 'webm';
+    const uniqueFileName = `temp_${Date.now()}.${fileExtension}`;
     console.log('[Temp Upload API] Uploading to S3 with filename:', uniqueFileName);
 
     // Upload file to S3 and get the URL
