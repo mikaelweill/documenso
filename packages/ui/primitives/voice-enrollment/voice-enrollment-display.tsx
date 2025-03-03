@@ -194,12 +194,11 @@ export const VoiceEnrollmentDisplay = ({
         videoUrl.startsWith('http') && !videoUrl.includes(window.location.hostname)
           ? 'Yes (potential CORS issue)'
           : 'No',
-      presignedUrl: presignedVideoUrl ? 'Available' : 'Not available',
     };
 
     console.log('Video details:', details);
     return details;
-  }, [videoUrl, presignedVideoUrl, checkWebMSupport]);
+  }, [videoUrl, checkWebMSupport]);
 
   useEffect(() => {
     // Reset the playing state when video URL changes
