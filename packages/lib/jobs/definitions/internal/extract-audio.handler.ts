@@ -177,7 +177,8 @@ export const run = async ({ payload }: { payload: TExtractAudioJobDefinition }) 
         },
         data: {
           audioUrl: s3AudioUrl,
-          processingStatus: 'COMPLETED',
+          processingStatus: 'AUDIO_EXTRACTED',
+          readyForProfileCreation: true,
           updatedAt: new Date(),
         },
       });

@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import Link from 'next/link';
 
-import { Trans, msg } from '@lingui/macro';
+import { Trans } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
 import { AlertTriangle, Check, Loader2, Mic } from 'lucide-react';
 
@@ -38,6 +38,13 @@ export const VoiceEnrollmentDisplay = ({
   const hasEnrollment = Boolean(videoUrl || audioUrl);
   const hasProfile = Boolean(voiceProfileId);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [_isCreating, setIsCreating] = useState(false);
+  const [diagnosticData, setDiagnosticData] = useState<{
+    exists?: boolean;
+    details?: string;
+    error?: string;
+  } | null>(null);
 
   // Handle creating a voice profile
   const handleCreateProfile = async () => {
@@ -104,6 +111,50 @@ export const VoiceEnrollmentDisplay = ({
     }
   };
 
+  // Add a new function to check profile validity
+  const handleCheckProfile = async () => {
+    try {
+      setDiagnosticData(null);
+      setIsLoading(true);
+
+      // Call the new API endpoint to check if the profile exists
+      const response = await fetch('/api/voice-verification/check-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profileId: voiceProfileId,
+        }),
+      });
+
+      const data = await response.json();
+      setDiagnosticData(data);
+
+      if (!data.exists) {
+        toast({
+          title: _({ id: 'voice-enrollment.profile-check-failed' }),
+          description: data.details || _({ id: 'voice-enrollment.profile-not-found' }),
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: _({ id: 'voice-enrollment.profile-check-success' }),
+          description: data.details || _({ id: 'voice-enrollment.profile-valid' }),
+        });
+      }
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      toast({
+        title: _({ id: 'voice-enrollment.check-error' }),
+        description: error instanceof Error ? error.message : String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Render profile status badge
   const renderStatusBadge = () => {
     if (!hasEnrollment) return null;
@@ -140,59 +191,109 @@ export const VoiceEnrollmentDisplay = ({
     );
   };
 
+  // Add this right after your renderStatusBadge function
+  const renderDiagnostics = () => {
+    if (!diagnosticData) return null;
+
+    return (
+      <div className="mt-2 text-sm">
+        {diagnosticData.exists ? (
+          <Alert className="border-green-500 bg-green-50 text-xs text-green-800 dark:border-green-900 dark:bg-green-900/30 dark:text-green-400">
+            <Check className="h-3 w-3" />
+            <AlertTitle>{_({ id: 'voice-enrollment.profile-exists' })}</AlertTitle>
+            <AlertDescription>{diagnosticData.details}</AlertDescription>
+          </Alert>
+        ) : (
+          <Alert variant="destructive" className="text-xs">
+            <AlertTriangle className="h-3 w-3" />
+            <AlertTitle>{_({ id: 'voice-enrollment.profile-missing' })}</AlertTitle>
+            <AlertDescription>{diagnosticData.details || diagnosticData.error}</AlertDescription>
+          </Alert>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className={cn('w-full', className)}>
-      {renderStatusBadge()}
-
-      <VoiceDisplay videoUrl={videoUrl} audioUrl={audioUrl} duration={duration} className="mb-4" />
-
-      {!hasEnrollment ? (
-        <Alert variant="warning" className="mt-2">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>
-            <Trans>No voice enrollment found</Trans>
-          </AlertTitle>
-          <AlertDescription className="flex flex-col gap-4">
-            <p>
-              <Trans>
-                You haven't completed voice enrollment yet. Voice enrollment helps verify your
-                identity when signing documents with voice signatures.
-              </Trans>
-            </p>
-
-            <Button asChild className="w-fit">
-              <Link href="/voice-enrollment">
-                <Mic className="mr-2 h-4 w-4" />
-                {_(msg`Complete Voice Enrollment`)}
-              </Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <div className="mt-4 flex flex-wrap items-center gap-4">
-          {/* Show profile creation button if there's audio but no profile */}
-          {hasEnrollment && !hasProfile && audioUrl && (
-            <Button onClick={handleCreateProfile} disabled={isCreatingProfile} variant="default">
-              {isCreatingProfile ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating profile...
-                </>
-              ) : (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Get Verified
-                </>
-              )}
-            </Button>
-          )}
-
-          <Button asChild variant="outline">
+    <div className={cn('flex flex-col', className)}>
+      {!videoUrl && !audioUrl ? (
+        <div className="bg-muted flex flex-col items-center justify-center rounded-md p-4">
+          <div className="bg-muted-foreground/20 mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+            <Mic className="text-muted-foreground h-8 w-8" />
+          </div>
+          <p className="text-muted-foreground mb-4 text-center text-sm">
+            <Trans>You haven't enrolled your voice yet.</Trans>
+          </p>
+          <Button asChild>
             <Link href="/voice-enrollment">
-              <Mic className="mr-2 h-4 w-4" />
-              {_(msg`Update Voice Enrollment`)}
+              <Trans>Enroll Your Voice</Trans>
             </Link>
           </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">
+                <Trans>Voice Enrollment</Trans> {renderStatusBadge()}
+              </h4>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCheckProfile}
+                  disabled={isLoading || _isCreating || !voiceProfileId}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <span>
+                        <Trans>Checking...</Trans>
+                      </span>
+                    </>
+                  ) : (
+                    <span>
+                      <Trans>Check Profile</Trans>
+                    </span>
+                  )}
+                </Button>
+
+                {(processingStatus === 'AUDIO_EXTRACTED' || processingStatus === 'COMPLETED') &&
+                  !voiceProfileId && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleCreateProfile}
+                      disabled={isCreatingProfile}
+                    >
+                      {isCreatingProfile ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <span>
+                            <Trans>Creating...</Trans>
+                          </span>
+                        </>
+                      ) : (
+                        <span>
+                          <Trans>Create Profile</Trans>
+                        </span>
+                      )}
+                    </Button>
+                  )}
+              </div>
+            </div>
+            {diagnosticData && renderDiagnostics()}
+          </div>
+
+          <VoiceDisplay videoUrl={videoUrl} audioUrl={audioUrl} duration={duration} />
+
+          {enrollmentId && (
+            <div className="text-muted-foreground flex flex-col text-xs">
+              <span>ID: {enrollmentId}</span>
+              {voiceProfileId && <span>Profile: {voiceProfileId}</span>}
+              {processingStatus && <span>Status: {processingStatus}</span>}
+            </div>
+          )}
         </div>
       )}
     </div>

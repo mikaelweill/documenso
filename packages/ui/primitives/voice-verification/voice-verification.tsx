@@ -18,8 +18,10 @@ export type VoiceVerificationResult = {
   threshold: number;
   details?: {
     recognitionResult?: string;
+    errorDetails?: string;
     [key: string]: unknown;
   };
+  error?: string;
 };
 
 export type VoiceVerificationDataFormat = {
@@ -50,36 +52,42 @@ export const VoiceVerification = ({
 }: VoiceVerificationProps) => {
   const { _ } = useLingui();
 
+  const [audioData, setAudioData] = useState<VoiceVerificationDataFormat | null>(null);
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [audioData, setAudioData] = useState<VoiceVerificationDataFormat | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string | null>(null);
-  const [isVerifying, setIsVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VoiceVerificationResult | null>(
     null,
   );
   const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [_isLoading, setIsLoading] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartRef = useRef<number>(0);
 
   const cleanup = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
     if (audioStream) {
       audioStream.getTracks().forEach((track) => track.stop());
       setAudioStream(null);
     }
 
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
+    if (recorder) {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
       setRecorder(null);
     }
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    setIsRecording(false);
+    timerStartRef.current = 0;
   }, [audioStream, recorder]);
 
   useEffect(() => {
@@ -112,53 +120,96 @@ export const VoiceVerification = ({
     setVerificationError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('audioData', audioBlob);
+      // Convert blob to base64 string
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          console.log(
+            `🔒 Audio converted to base64, length: ${base64.length}, first 50 chars: ${base64.substring(0, 50)}...`,
+          );
+          resolve(base64);
+        };
+        reader.onerror = (error) => {
+          console.error('🔒 Error converting audio to base64:', error);
+          resolve(''); // Resolve with empty string on error
+        };
+      });
+      reader.readAsDataURL(audioBlob);
+      const base64Data = await base64Promise;
 
-      if (userId) {
-        formData.append('userId', userId.toString());
+      // Check if the data is too large for a standard JSON API call
+      if (base64Data.length > 5000000) {
+        // 5MB limit for easy handling in JSON
+        console.warn('🔒 Audio data exceeds 5MB, this may cause issues with the API');
+        setVerificationError(
+          'Audio recording is too large. Try a shorter recording or adjust microphone settings.',
+        );
+
+        return {
+          verified: false,
+          score: 0,
+          threshold: 0.5,
+          details: {
+            error: 'Audio data too large for verification',
+            size: base64Data.length,
+          },
+        };
       }
 
+      // Ensure we have a valid audio MIME type in the data URI
+      let processedData = base64Data;
+      if (!processedData.startsWith('data:audio/')) {
+        console.warn('🔒 Fixing missing audio MIME type in data URI');
+        // Add proper audio MIME type prefix if missing
+        processedData = `data:audio/webm;base64,${processedData.split(',')[1] || processedData}`;
+      }
+
+      // Log the detected MIME type for debugging
+      const mimeType = processedData.match(/^data:([^;]+);/)?.[1] || 'unknown';
+      console.log('🔒 Detected MIME type:', mimeType);
+
+      // Send the audio to the verification API
       console.log('🔒 Sending audio to verification API...');
       const response = await fetch('/api/voice-verification', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioData: processedData,
+          userId,
+        }),
       });
 
       console.log('🔒 Verification API response status:', response.status);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || 'Verification failed');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('🔒 Verification API error:', errorData);
+        throw new Error(errorData.error || 'Failed to verify voice');
       }
 
       const result = await response.json();
       console.log('🔒 Verification result:', result);
 
-      const verificationResult: VoiceVerificationResult = {
-        verified: result.verified,
-        score: result.score,
-        threshold: result.threshold,
-        details: result.details || {},
-      };
+      setVerificationResult(result);
+      onVerificationComplete?.(result);
 
-      setVerificationResult(verificationResult);
-      onVerificationComplete?.(verificationResult);
-
-      return verificationResult;
+      return result;
     } catch (error) {
-      console.error('🔒 Voice verification error:', error);
+      console.error('🔒 Error verifying voice:', error);
 
-      const errorMessage =
-        error instanceof Error ? error.message : 'An error occurred during voice verification';
+      setVerificationError(error instanceof Error ? error.message : 'Unknown error');
 
-      setVerificationError(errorMessage);
-
+      // Return default failed result
       const failedResult: VoiceVerificationResult = {
         verified: false,
         score: 0,
         threshold: 0.5,
-        details: { error: errorMessage },
+        details: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
       };
 
       setVerificationResult(failedResult);
@@ -172,16 +223,31 @@ export const VoiceVerification = ({
   };
 
   const startRecording = async () => {
+    if (isRecording || audioData) {
+      return;
+    }
+
     try {
-      setRecordingError(null);
+      setIsLoading(true);
       setRecordingDuration(0);
       setVerificationResult(null);
       setVerificationError(null);
+      setRecordingError(null);
 
       console.log('🎙️ Requesting microphone access...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1, // Mono recording for smaller file size
+          sampleRate: 16000, // 16kHz as required by Azure
+        },
+      });
       setAudioStream(stream);
 
+      // For Chrome and other browsers, WAV and MP3 are not typically supported
+      // But we still check in case the browser supports them
       const mimeType = MediaRecorder.isTypeSupported('audio/wav')
         ? 'audio/wav'
         : MediaRecorder.isTypeSupported('audio/mp3')
@@ -189,76 +255,156 @@ export const VoiceVerification = ({
           : 'audio/webm';
 
       console.log(`🎙️ Using media recorder with MIME type: ${mimeType}`);
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      setRecorder(mediaRecorder);
+
+      // Set bitrate to a reasonable value to reduce file size
+      const options = {
+        mimeType: mimeType,
+        audioBitsPerSecond: 16000, // Lower bitrate for smaller file size
+      };
+
+      const recorderInstance = new MediaRecorder(stream, options);
+      setRecorder(recorderInstance);
 
       const audioChunks: Blob[] = [];
 
-      mediaRecorder.addEventListener('dataavailable', (event) => {
+      recorderInstance.addEventListener('dataavailable', (event) => {
         if (event.data.size > 0) {
+          console.log(`🎙️ Received audio chunk: ${event.data.size} bytes`);
           audioChunks.push(event.data);
         }
       });
 
-      mediaRecorder.addEventListener('start', () => {
+      recorderInstance.addEventListener('start', () => {
         console.log('🎙️ Recording started');
         timerStartRef.current = Date.now();
         setIsRecording(true);
       });
 
-      mediaRecorder.addEventListener('stop', () => {
+      recorderInstance.addEventListener('stop', () => {
         console.log('🎙️ Recording stopped');
-        const actualDuration = Math.floor((Date.now() - timerStartRef.current) / 1000);
-        const safeDuration = Math.max(1, actualDuration);
 
-        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        // Important bug fix: Save duration before resetting timer reference
+        const recordingEndTime = Date.now();
+        const actualDuration =
+          timerStartRef.current > 0
+            ? Math.floor((recordingEndTime - timerStartRef.current) / 1000)
+            : recordingDuration;
 
-        console.log('🎙️ Audio recording complete:', {
-          size: audioBlob.size,
-          type: audioBlob.type,
-          duration: safeDuration,
-        });
-
-        const safeAudioData: VoiceVerificationDataFormat = {
-          audioBlob,
-          duration: safeDuration,
-        };
-
-        setAudioData(safeAudioData);
+        // Now reset recording state
         setIsRecording(false);
         timerStartRef.current = 0;
 
-        // Start verification process
-        const verificationPromise = verifyVoice(audioBlob);
+        // Use the actual duration or fall back to state value if calculation failed
+        const safeDuration = Math.max(1, actualDuration);
 
-        safeAudioData.verificationPromise = verificationPromise;
+        const recordedAudioBlob = new Blob(audioChunks, { type: recorderInstance.mimeType });
 
-        // Update state with promise
-        setAudioData(safeAudioData);
+        console.log('🎙️ Audio recording complete:', {
+          size: recordedAudioBlob.size,
+          type: recordedAudioBlob.type,
+          duration: safeDuration,
+        });
+
+        // Check if the audio is too small (likely a recording error)
+        if (recordedAudioBlob.size < 1000) {
+          console.warn(
+            '🎙️ Audio recording is suspiciously small:',
+            recordedAudioBlob.size,
+            'bytes',
+          );
+          setRecordingError(
+            'The recording appears to be too short or empty. Please try again with a clearer voice.',
+          );
+          setIsRecording(false);
+          return;
+        }
+
+        const recordedAudioData: VoiceVerificationDataFormat = {
+          audioBlob: recordedAudioBlob,
+          duration: safeDuration,
+        };
+
+        setAudioData(recordedAudioData);
+
+        // Automatically verify after recording
+        verifyVoice(recordedAudioBlob)
+          .then((result) => {
+            // Create a new object to ensure React detects the change
+            setAudioData({
+              audioBlob: recordedAudioBlob,
+              duration: safeDuration,
+              verificationResult: result,
+            });
+          })
+          .catch((error) => {
+            console.error('🎙️ Verification error:', error);
+            setVerificationError(error.message || 'Failed to verify voice');
+          });
       });
 
-      console.log('🎙️ Starting media recorder');
-      mediaRecorder.start();
+      // Set the recorder to record in small chunks for better performance
+      recorderInstance.start(200);
+      setIsLoading(false);
     } catch (error) {
-      console.error('🎙️ Error accessing microphone:', error);
-      setRecordingError(
-        _(msg`Microphone access denied. Please grant permission to use the microphone.`),
-      );
+      console.error('🎙️ Error starting recording:', error);
+      setIsLoading(false);
+
+      // Provide specific error messages based on common issues
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          setRecordingError(
+            'Microphone access was denied. Please allow microphone access and try again.',
+          );
+        } else if (error.name === 'NotFoundError') {
+          setRecordingError('No microphone was found. Please check your device and try again.');
+        } else if (error.name === 'NotReadableError') {
+          setRecordingError(
+            'Your microphone is busy or not functioning properly. Please try again.',
+          );
+        } else {
+          setRecordingError(`Recording error: ${error.message || error.name}`);
+        }
+      } else {
+        setRecordingError(
+          `Could not start recording: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      }
     }
   };
 
   const stopRecording = () => {
-    if (recorder && recorder.state !== 'inactive') {
+    console.log('🎙️ Stopping recording...');
+
+    if (!recorder) {
+      console.warn('🎙️ No recorder available to stop');
+      return;
+    }
+
+    try {
+      // Save the end time before stopping the recorder
+      const recordingEndTime = Date.now();
+      const actualDuration = Math.floor((recordingEndTime - timerStartRef.current) / 1000);
+
+      console.log('🎙️ Stopping recording, elapsed time:', actualDuration);
+
       recorder.stop();
-    }
+      console.log('🎙️ Recording stopped');
 
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+      setIsRecording(false);
 
-    if (audioStream) {
-      audioStream.getTracks().forEach((track) => track.stop());
+      // Reset timer reference AFTER calculating duration
+      timerStartRef.current = 0;
+
+      // Use the captured duration rather than calculating it after reset
+      const safeDuration = Math.max(1, actualDuration);
+      console.log('🎙️ Final recording duration:', safeDuration);
+
+      if (audioStream) {
+        audioStream.getTracks().forEach((track) => track.stop());
+        console.log('🎙️ Audio tracks stopped');
+      }
+    } catch (error) {
+      console.error('🎙️ Error stopping recording:', error);
     }
   };
 
@@ -312,11 +458,35 @@ export const VoiceVerification = ({
                 : _(msg`Voice verification failed`)}
             </AlertTitle>
             <AlertDescription>
-              {verificationResult.verified
-                ? _(
-                    msg`Your voice has been verified with a confidence of ${Math.round(verificationResult.score * 100)}%.`,
-                  )
-                : _(msg`We couldn't verify your voice. Please try again or contact support.`)}
+              {verificationResult.verified ? (
+                _(
+                  msg`Your voice has been verified with a confidence of ${Math.round(verificationResult.score * 100)}%.`,
+                )
+              ) : (
+                <div>
+                  {verificationResult.details?.errorDetails &&
+                  typeof verificationResult.details.errorDetails === 'string' &&
+                  verificationResult.details.errorDetails.includes('not properly enrolled') ? (
+                    <div className="space-y-1">
+                      <p>{_(msg`Your voice profile needs more training.`)}</p>
+                      <p className="text-sm">
+                        {_(
+                          msg`The voice profile is still in the "Enrolling" state. Please complete the enrollment process by recording more speech samples.`,
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p>
+                      {_(msg`We couldn't verify your voice. Please try again or contact support.`)}
+                    </p>
+                  )}
+                  {verificationResult.details?.errorDetails && (
+                    <div className="bg-destructive/10 mt-2 rounded p-2 text-xs">
+                      <strong>Technical details:</strong> {verificationResult.details.errorDetails}
+                    </div>
+                  )}
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}
@@ -342,6 +512,11 @@ export const VoiceVerification = ({
                       <Trans>
                         Please speak for at least {minRecordingSeconds} seconds to verify your
                         voice.
+                      </Trans>
+                    ) : recordingDuration < 20 ? (
+                      <Trans>
+                        Continue speaking to provide more training data. Azure recommends at least
+                        20 seconds of speech for complete enrollment.
                       </Trans>
                     ) : (
                       <Trans>You can continue speaking or stop recording now.</Trans>

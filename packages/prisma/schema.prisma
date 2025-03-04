@@ -822,6 +822,7 @@ model VoiceEnrollment {
   isActive         Boolean @default(true)
   processingStatus String? // For tracking extraction/processing status
   processingError  String? // For storing any errors during processing
+  readyForProfileCreation Boolean @default(false) // Indicates audio is extracted and ready for profile creation
 
   // Reference to enrollment video (for development)
   enrollmentVideoPath String?
